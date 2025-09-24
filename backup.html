@@ -1,0 +1,2386 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Academix</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js for graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- QR Code Generation Library -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    
+    <!-- QR Code Scanning Library -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar for better aesthetics */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .dark ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #475569;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        .dark ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+        /* Hide sidebar scrollbar */
+        #sidebar {
+            -ms-overflow-style: none; /* IE and Edge */
+            scrollbar-width: none; /* Firefox */
+        }
+        #sidebar::-webkit-scrollbar {
+            display: none; /* Chrome, Safari and Opera */
+        }
+        /* Custom styles for QR scanner */
+        #qr-reader {
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        /* Chart.js responsive fix */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+        .loader {
+            border: 4px solid #f3f3f3; /* Light grey */
+            border-top: 4px solid #3498db; /* Blue */
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+        }
+        .loader-small {
+            display: inline-block;
+            vertical-align: middle;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top: 2px solid #fff;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Modal styles */
+        .modal-backdrop {
+            background-color: rgba(0,0,0,0.5);
+            transition: opacity 0.3s ease-in-out;
+        }
+        .modal-content {
+            transition: transform 0.3s ease-in-out;
+        }
+        .profile-photo-upload {
+            position: relative;
+            width: 128px;
+            height: 128px;
+        }
+        .profile-photo-upload img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+        .profile-photo-upload .overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: rgba(0,0,0,0.5);
+            overflow: hidden;
+            width: 100%;
+            height: 0;
+            transition: .3s ease;
+            border-bottom-left-radius: 50%;
+            border-bottom-right-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .profile-photo-upload:hover .overlay {
+            height: 40%;
+        }
+        /* Calendar Styles */
+        .calendar-day {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 36px;
+            width: 36px;
+            border-radius: 50%;
+            font-size: 0.875rem;
+            margin: auto;
+        }
+        .calendar-header {
+            font-weight: 600;
+            color: #64748b; /* slate-500 */
+        }
+        .dark .calendar-header {
+            color: #94a3b8; /* slate-400 */
+        }
+        .day-present {
+            background-color: #3b82f6; /* blue-500 */
+            color: white;
+        }
+        .day-absent {
+            color: #ef4444; /* red-500 */
+            font-weight: 600;
+        }
+        .day-today {
+            border: 2px solid #3b82f6; /* blue-500 */
+        }
+    </style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200 transition-colors duration-300">
+
+    <!-- LOGIN PAGE -->
+    <div id="login-page" class="flex items-center justify-center min-h-screen">
+        <div class="w-full max-w-md p-8 space-y-6 bg-white dark:bg-slate-800 rounded-2xl shadow-lg">
+            <!-- Login View -->
+            <div id="login-view" class="hidden text-center">
+                <i data-lucide="shield-check" class="mx-auto h-12 w-12 text-blue-500"></i>
+                <h2 class="mt-4 text-3xl font-bold text-slate-900 dark:text-white">Academix</h2>
+                <p class="mt-2 text-sm text-slate-600 dark:text-slate-400">Welcome back! Please sign in.</p>
+                
+                <form id="login-form" class="mt-6 space-y-4 text-left">
+                    <div>
+                        <label for="login-email" class="text-sm font-medium">Email</label>
+                        <input id="login-email" type="email" required class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="you@example.com">
+                    </div>
+                    <div>
+                        <label for="login-password" class="text-sm font-medium">Password</label>
+                        <input id="login-password" type="password" required class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="••••••••">
+                    </div>
+                     <p id="login-error" class="text-red-500 text-sm text-center hidden"></p>
+                    <button type="submit" class="w-full py-3 px-4 text-sm font-semibold rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 transition-all">
+                        Sign In
+                    </button>
+                </form>
+
+                <div class="relative my-4">
+                    <div class="absolute inset-0 flex items-center">
+                        <div class="w-full border-t border-slate-300 dark:border-slate-600"></div>
+                    </div>
+                    <div class="relative flex justify-center text-sm">
+                        <span class="px-2 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400">Or continue with</span>
+                    </div>
+                </div>
+
+                <button id="google-signin-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all">
+                    <svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C39.99,35.533,44,30.169,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
+                    Sign In with Google
+                </button>
+                
+                <p class="mt-4 text-sm text-center">
+                    <a href="#" id="show-signup-link" class="font-medium text-blue-600 hover:underline dark:text-blue-500">Don't have an account? Sign up</a>
+                </p>
+            </div>
+            
+            <!-- Registration View -->
+            <div id="signup-view" class="hidden text-center">
+                 <i data-lucide="user-plus" class="mx-auto h-12 w-12 text-blue-500"></i>
+                <h2 class="mt-4 text-3xl font-bold text-slate-900 dark:text-white">Create Account</h2>
+                <p class="mt-2 text-sm text-slate-600 dark:text-slate-400">Get started with a new account.</p>
+
+                <form id="signup-form" class="mt-6 space-y-4 text-left">
+                    <div>
+                        <label for="signup-name" class="text-sm font-medium">Full Name</label>
+                        <input id="signup-name" type="text" required class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="John Doe">
+                    </div>
+                    <div>
+                        <label for="signup-email" class="text-sm font-medium">Email</label>
+                        <input id="signup-email" type="email" required class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="you@example.com">
+                    </div>
+                    <div>
+                        <label for="signup-password" class="text-sm font-medium">Password</label>
+                        <input id="signup-password" type="password" required class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="••••••••">
+                    </div>
+                    <p id="signup-error" class="text-red-500 text-sm text-center hidden"></p>
+                    <button type="submit" class="w-full py-3 px-4 text-sm font-semibold rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 transition-all">
+                        Create Account
+                    </button>
+                </form>
+
+                 <p class="mt-4 text-sm text-center">
+                    <a href="#" id="show-login-link" class="font-medium text-blue-600 hover:underline dark:text-blue-500">Already have an account? Sign in</a>
+                </p>
+            </div>
+
+            <!-- Role Selection View -->
+             <div id="role-selection-view" class="hidden text-center">
+                <i data-lucide="user-check" class="mx-auto h-12 w-12 text-green-500"></i>
+                <h2 class="mt-4 text-3xl font-bold text-slate-900 dark:text-white">Welcome!</h2>
+                <p class="mt-2 text-sm text-slate-600 dark:text-slate-400">Please select your role to complete registration.</p>
+                <div class="space-y-4 mt-6">
+                    <button onclick="selectRole('admin')" class="w-full flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 transition-all">
+                        <i data-lucide="user-cog"></i> I am an Admin
+                    </button>
+                    <button onclick="selectRole('teacher')" class="w-full flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold rounded-lg border border-transparent bg-indigo-600 text-white hover:bg-indigo-700 transition-all">
+                        <i data-lucide="contact"></i> I am a Teacher
+                    </button>
+                    <button onclick="selectRole('student')" class="w-full flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold rounded-lg border border-transparent bg-emerald-600 text-white hover:bg-emerald-700 transition-all">
+                        <i data-lucide="user"></i> I am a Student
+                    </button>
+                </div>
+            </div>
+            
+            <div id="loading-content" class="text-center">
+                 <div class="loader mx-auto"></div>
+                 <p class="mt-4 text-slate-600 dark:text-slate-400">Connecting to server...</p>
+                 <p id="global-error" class="text-red-500 text-sm text-center hidden mt-2"></p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- MAIN APPLICATION -->
+    <div id="app" class="hidden">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="fixed top-0 left-0 z-40 w-64 h-screen transition-transform -translate-x-full sm:translate-x-0 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 overflow-y-auto">
+            <div class="flex items-center justify-center h-20 border-b border-slate-200 dark:border-slate-700">
+                <i data-lucide="shield-check" class="h-8 w-8 text-blue-500"></i>
+                <span class="ml-3 text-2xl font-bold">Academix</span>
+            </div>
+            <nav id="sidebar-nav" class="p-4">
+                <ul class="space-y-2">
+                    <!-- Navigation items will be dynamically generated here -->
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="sm:ml-64 transition-all duration-300">
+            <!-- Header -->
+            <header class="sticky top-0 z-30 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700">
+                <div class="px-4 sm:px-6 lg:px-8">
+                    <div class="flex items-center justify-between h-20">
+                        <!-- Mobile Sidebar Toggle -->
+                        <button id="sidebar-toggle" class="sm:hidden p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700">
+                            <i data-lucide="menu"></i>
+                        </button>
+                        
+                        <!-- Search Bar -->
+                        <div class="hidden sm:block">
+                             <div class="relative">
+                                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400"></i>
+                                <input id="search-input" type="text" class="pl-10 pr-4 py-2 w-80 rounded-lg bg-slate-100 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Search...">
+                                <div id="search-results-panel" class="hidden absolute top-full mt-2 w-full bg-white dark:bg-slate-800 rounded-lg shadow-lg border dark:border-slate-700 z-50 max-h-96 overflow-y-auto">
+                                    <!-- Results will be injected here by JS -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Header Right Side -->
+                        <div class="flex items-center gap-4">
+                            <!-- Scan Button (Student Only) -->
+                            <button id="header-scan-btn" class="hidden p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700">
+                                <i data-lucide="qr-code" class="h-6 w-6"></i>
+                            </button>
+                            <!-- Theme Toggle -->
+                            <button id="theme-toggle" class="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700">
+                                <i data-lucide="sun" class="h-6 w-6 hidden dark:block"></i>
+                                <i data-lucide="moon" class="h-6 w-6 block dark:hidden"></i>
+                            </button>
+                            <!-- Notifications -->
+                            <div class="relative">
+                                <button id="notification-btn" class="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 relative">
+                                    <i data-lucide="bell" class="h-6 w-6"></i>
+                                    <span id="notification-dot" class="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500 hidden"></span>
+                                </button>
+                                <div id="notification-panel" class="hidden absolute right-0 mt-2 w-80 bg-white dark:bg-slate-800 rounded-2xl shadow-lg border dark:border-slate-700 p-4 z-50">
+                                    <h3 class="font-bold mb-2">Notifications</h3>
+                                    <div id="notification-list" class="max-h-80 overflow-y-auto space-y-2">
+                                        <!-- Notifications will be rendered here -->
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Profile Dropdown -->
+                            <div class="relative">
+                                <button class="flex items-center gap-2">
+                                    <img id="user-avatar" src="https://placehold.co/40x40/6366f1/ffffff?text=A" alt="User Avatar" class="h-10 w-10 rounded-full">
+                                    <div>
+                                        <p id="user-name" class="font-semibold text-sm">Alex Hartman</p>
+                                        <p id="user-role" class="text-xs text-slate-500 dark:text-slate-400">Admin</p>
+                                    </div>
+                                </button>
+                            </div>
+                             <button onclick="logout()" class="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700">
+                                <i data-lucide="log-out" class="h-6 w-6"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Page Content -->
+            <main id="main-content" class="p-4 sm:p-6 lg:p-8 space-y-6">
+                <!-- Each page view will be a div here, toggled by JS -->
+
+                <!-- HOME VIEW -->
+                <div id="view-home">
+                     <h1 class="text-3xl font-bold mb-6">Home</h1>
+                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Notice Board Column -->
+                        <div class="lg:col-span-2">
+                            <div class="flex justify-between items-center mb-4">
+                                <h2 class="text-xl font-bold">Notice Board</h2>
+                                <button id="post-notice-btn" class="hidden flex items-center gap-2 py-2 px-4 text-sm font-semibold rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 transition-all">
+                                    <i data-lucide="plus"></i> Post Notice
+                                </button>
+                            </div>
+                            <div id="notice-board-container" class="space-y-4 h-96 overflow-y-auto pr-2 bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-md">
+                                <!-- Notices will be rendered here -->
+                            </div>
+                        </div>
+                        <!-- Rankers List Column -->
+                        <div class="lg:col-span-1 p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md">
+                            <div class="flex justify-between items-center mb-4">
+                                <h2 class="text-xl font-bold">Top Rankers</h2>
+                                <button id="edit-rankers-btn" class="hidden flex items-center gap-1 py-1 px-2 text-xs font-semibold rounded-lg border border-transparent bg-indigo-600 text-white hover:bg-indigo-700 transition-all">
+                                    <i data-lucide="edit-3" class="h-3 w-3"></i>
+                                    <span>Edit</span>
+                                </button>
+                            </div>
+                            <div id="rankers-list-container" class="space-y-3 h-[22rem] overflow-y-auto">
+                                <!-- Ranker students list will be rendered here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CLUBS VIEW -->
+                 <div id="view-clubs" class="hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h1 class="text-3xl font-bold">Clubs & Communities</h1>
+                        <button id="create-club-btn" class="hidden flex items-center gap-2 py-2 px-4 text-sm font-semibold rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 transition-all">
+                            <i data-lucide="plus-circle"></i> Create Club
+                        </button>
+                    </div>
+                    <div id="clubs-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <!-- Club cards will be dynamically inserted here -->
+                    </div>
+                </div>
+
+                <!-- DASHBOARD VIEW -->
+                <div id="view-dashboard" class="hidden">
+                    <h1 class="text-3xl font-bold mb-6">Dashboard</h1>
+                    <!-- Stats Cards -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div class="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Total Subjects</p>
+                                <p id="total-subjects" class="text-3xl font-bold">0</p>
+                            </div>
+                            <div class="p-3 bg-blue-100 dark:bg-blue-900/50 rounded-full">
+                                <i data-lucide="book-open" class="h-6 w-6 text-blue-500"></i>
+                            </div>
+                        </div>
+                        <div class="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Total Lectures</p>
+                                <p id="total-lectures" class="text-3xl font-bold">0</p>
+                            </div>
+                            <div class="p-3 bg-indigo-100 dark:bg-indigo-900/50 rounded-full">
+                                <i data-lucide="presentation" class="h-6 w-6 text-indigo-500"></i>
+                            </div>
+                        </div>
+                         <div class="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md flex items-center justify-between">
+                            <div>
+                                <p id="total-attended-label" class="text-sm font-medium text-slate-500 dark:text-slate-400">Total Attended</p>
+                                <p id="total-attended" class="text-3xl font-bold">0</p>
+                            </div>
+                            <div class="p-3 bg-emerald-100 dark:bg-emerald-900/50 rounded-full">
+                                <i data-lucide="check-circle" class="h-6 w-6 text-emerald-500"></i>
+                            </div>
+                        </div>
+                         <div class="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Clubs Joined</p>
+                                <p id="clubs-joined" class="text-3xl font-bold">0</p>
+                            </div>
+                            <div class="p-3 bg-amber-100 dark:bg-amber-900/50 rounded-full">
+                                <i data-lucide="users-2" class="h-6 w-6 text-amber-500"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts and other content -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+                        <!-- Attendance Trend Line Chart -->
+                        <div class="lg:col-span-2 p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md">
+                            <h3 class="font-semibold mb-4">Attendance Trend (Last 7 Days)</h3>
+                            <div class="chart-container">
+                                <canvas id="attendanceTrendChart"></canvas>
+                            </div>
+                        </div>
+                        <!-- Class Performance Pie Chart -->
+                        <div class="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md">
+                            <h3 id="overall-attendance-chart-title" class="font-semibold mb-4">Attendance by Class</h3>
+                             <div class="chart-container" style="height:300px">
+                                <canvas id="classPerformanceChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                     <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 mt-6">
+                        <div class="lg:col-span-3 p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md">
+                             <h3 class="font-semibold mb-4">Recent Notifications</h3>
+                             <ul class="space-y-4">
+                                <!-- Notifications will be dynamically added -->
+                             </ul>
+                        </div>
+                        <div class="lg:col-span-2 p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md">
+                             <h3 class="font-semibold mb-4">Top Performing Students</h3>
+                             <ul class="space-y-4" id="top-students-list">
+                                <!-- Top students will be dynamically added -->
+                             </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- STUDENT PORTAL VIEW -->
+                <div id="view-student-portal" class="hidden">
+                    <h1 class="text-3xl font-bold mb-6">Student Portal</h1>
+                    <div class="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md">
+                        <form id="student-portal-form">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div class="md:col-span-1 flex flex-col items-center">
+                                    <label for="profile-photo-input" class="profile-photo-upload">
+                                        <img id="profile-photo-preview" src="https://placehold.co/128x128/e2e8f0/64748b?text=Upload" alt="Profile Photo">
+                                        <div class="overlay">
+                                           <i data-lucide="camera" class="text-white"></i>
+                                        </div>
+                                    </label>
+                                    <input type="file" id="profile-photo-input" class="hidden" accept="image/png, image/jpeg">
+                                    <p class="text-xs text-slate-500 mt-2">Max 200KB</p>
+                                </div>
+                                <div class="md:col-span-2 space-y-4">
+                                    <div>
+                                        <label for="portal-name" class="text-sm font-medium">Full Name (as per result)</label>
+                                        <input id="portal-name" type="text" disabled class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-200 dark:bg-slate-700 cursor-not-allowed">
+                                    </div>
+                                     <div>
+                                        <label for="portal-email" class="text-sm font-medium">Login Email</label>
+                                        <input id="portal-email" type="email" disabled class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-200 dark:bg-slate-700 cursor-not-allowed">
+                                    </div>
+                                    <div>
+                                        <label for="portal-enrollment" class="text-sm font-medium">Enrollment Number</label>
+                                        <input id="portal-enrollment" type="text" required class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    </div>
+                                     <div>
+                                        <label for="portal-idcard" class="text-sm font-medium">ID Card Number (Optional)</label>
+                                        <input id="portal-idcard" type="text" class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    </div>
+                                </div>
+                            </div>
+                            <p id="portal-error" class="text-red-500 text-sm text-center hidden mt-4"></p>
+                             <p id="portal-success" class="text-emerald-500 text-sm text-center hidden mt-4"></p>
+                            <div class="mt-6 flex justify-end">
+                                <button type="submit" class="px-6 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 flex items-center justify-center">
+                                    Save Changes
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+
+                <!-- ATTENDANCE VIEW (Global) -->
+                <div id="view-attendance" class="hidden">
+                     <h1 class="text-3xl font-bold mb-6">Attendance</h1>
+                     <!-- Student View: QR Code Scanner -->
+                     <div id="student-attendance-view" class="hidden">
+                         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <!-- Mark Attendance Card -->
+                            <div class="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md">
+                                <h3 class="font-semibold mb-4">Mark Your Attendance</h3>
+                                <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Scan the class QR code to mark your attendance.</p>
+                                <button id="start-scan-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 transition-all">
+                                    <i data-lucide="qr-code"></i> Scan Attendance QR Code
+                                </button>
+                                <div id="qr-reader" class="mt-4 w-full"></div>
+                                <div id="scan-result" class="mt-4 text-center font-medium"></div>
+                            </div>
+                            <!-- Your Details Card -->
+                            <div class="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md">
+                                <h3 class="font-semibold mb-4">Your Details</h3>
+                                <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Provide this information to your teacher to be added to a classroom.</p>
+                                <div class="space-y-4">
+                                    <div>
+                                        <label class="text-xs font-medium text-slate-500">Full Name</label>
+                                        <p id="student-detail-name" class="font-semibold text-lg">Loading...</p>
+                                    </div>
+                                    <div>
+                                        <label class="text-xs font-medium text-slate-500">Login Email</label>
+                                        <p id="student-detail-email" class="font-semibold text-lg">Loading...</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Your QR Code Card -->
+                            <div class="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md">
+                                <h3 class="font-semibold mb-4">Your QR Code</h3>
+                                 <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Show this to your teacher for manual identification.</p>
+                                <div id="student-qr-code" class="flex justify-center items-center p-4 bg-white rounded-lg"></div>
+                            </div>
+                         </div>
+                         <div class="mt-6 p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md">
+                            <h3 class="font-semibold mb-4">Your Class Section</h3>
+                            <div id="student-classes-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <!-- Student's classes will be rendered here -->
+                            </div>
+                        </div>
+                         <div class="mt-6 p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md">
+                             <h3 class="font-semibold mb-4">Your Attendance History</h3>
+                             <div class="overflow-x-auto">
+                                <table class="w-full text-sm text-left">
+                                    <thead class="text-xs text-slate-700 uppercase bg-slate-50 dark:bg-slate-700 dark:text-slate-400">
+                                        <tr>
+                                            <th class="px-6 py-3">Date</th>
+                                            <th class="px-6 py-3">Subject</th>
+                                            <th class="px-6 py-3">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="student-attendance-history">
+                                    </tbody>
+                                </table>
+                             </div>
+                         </div>
+                     </div>
+
+                     <!-- Admin View: Global Attendance Records -->
+                     <div id="admin-global-attendance-view" class="hidden">
+                         <div class="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md">
+                             <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
+                                 <h3 class="font-semibold">All Attendance Records</h3>
+                                 <div class="flex items-center gap-2">
+                                     <input type="date" id="global-attendance-date-filter" class="p-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                 </div>
+                             </div>
+                              <div class="overflow-x-auto">
+                                <table class="w-full text-sm text-left">
+                                    <thead class="text-xs text-slate-700 uppercase bg-slate-50 dark:bg-slate-700 dark:text-slate-400">
+                                        <tr>
+                                            <th class="px-6 py-3">Student Name</th>
+                                            <th class="px-6 py-3">Date</th>
+                                            <th class="px-6 py-3">Class</th>
+                                            <th class="px-6 py-3">Subject</th>
+                                            <th class="px-6 py-3">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="all-attendance-records">
+                                    </tbody>
+                                </table>
+                             </div>
+                         </div>
+                     </div>
+                </div>
+
+                <!-- CLASSROOMS VIEW (Teacher) -->
+                <div id="view-classrooms" class="hidden">
+                    <div id="classroom-list-view">
+                        <div class="flex justify-between items-center mb-6">
+                            <h1 class="text-3xl font-bold">My Classrooms</h1>
+                            <button id="add-classroom-btn" class="flex items-center gap-2 py-2 px-4 text-sm font-semibold rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 transition-all">
+                                <i data-lucide="plus-circle"></i> Create Classroom
+                            </button>
+                        </div>
+                        <div id="classrooms-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <!-- Classrooms will be dynamically inserted here -->
+                        </div>
+                    </div>
+
+                    <div id="classroom-detail-view" class="hidden">
+                        <!-- Classroom specific content will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- STUDENTS VIEW -->
+                <div id="view-students" class="hidden">
+                    <h1 class="text-3xl font-bold mb-6">Students</h1>
+                     <div class="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md">
+                        <!-- Table here -->
+                        <p>Student management table would go here for Admin.</p>
+                    </div>
+                </div>
+
+                <!-- TEACHERS VIEW -->
+                <div id="view-teachers" class="hidden">
+                    <h1 class="text-3xl font-bold mb-6">Teachers</h1>
+                     <div class="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md">
+                        <!-- Table here -->
+                        <p>Teacher management table would go here for Admin.</p>
+                    </div>
+                </div>
+
+                <!-- REPORTS VIEW -->
+                <div id="view-reports" class="hidden">
+                    <h1 class="text-3xl font-bold mb-6">Reports</h1>
+                     <div class="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md">
+                        <!-- Reports content here -->
+                        <p>Detailed reports and export options would be available here for Admin.</p>
+                    </div>
+                </div>
+
+                <!-- SETTINGS VIEW -->
+                <div id="view-settings" class="hidden">
+                    <h1 class="text-3xl font-bold mb-6">Settings</h1>
+                    <div class="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md">
+                        <h3 class="font-semibold">Appearance</h3>
+                        <div class="mt-4 flex items-center justify-between">
+                            <p>Toggle Dark/Light Mode</p>
+                            <button id="settings-theme-toggle" class="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700">
+                               <i data-lucide="sun" class="h-6 w-6 hidden dark:block"></i>
+                               <i data-lucide="moon" class="h-6 w-6 block dark:hidden"></i>
+                           </button>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+    
+    <!-- MODALS -->
+    <div id="post-notice-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-backdrop">
+        <div class="w-full max-w-lg p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-lg modal-content">
+            <h2 class="text-xl font-bold mb-4">Post New Notice</h2>
+            <form id="post-notice-form">
+                <div class="space-y-4">
+                    <div>
+                        <label for="notice-title" class="text-sm font-medium">Title</label>
+                        <input id="notice-title" type="text" required class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="notice-content" class="text-sm font-medium">Content</label>
+                        <textarea id="notice-content" required rows="4" class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end gap-3">
+                    <button type="button" class="modal-close-btn px-4 py-2 text-sm font-medium rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600">Cancel</button>
+                    <button type="submit" class="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700">Post Notice</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <!-- Create Club Modal -->
+    <div id="create-club-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-backdrop">
+        <div class="w-full max-w-lg p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-lg modal-content">
+            <h2 class="text-xl font-bold mb-4">Create New Club</h2>
+            <form id="create-club-form">
+                <div class="space-y-4">
+                    <div>
+                        <label for="club-name" class="text-sm font-medium">Club Name</label>
+                        <input id="club-name" type="text" required class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="club-description" class="text-sm font-medium">Description</label>
+                        <textarea id="club-description" required rows="4" class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                    </div>
+                </div>
+                <p id="create-club-error" class="text-red-500 text-sm text-center hidden mt-2"></p>
+                <div class="mt-6 flex justify-end gap-3">
+                    <button type="button" class="modal-close-btn px-4 py-2 text-sm font-medium rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600">Cancel</button>
+                    <button type="submit" class="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 flex items-center justify-center">Create Club</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <!-- Create Classroom Modal -->
+    <div id="create-classroom-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-backdrop">
+        <div class="w-full max-w-md p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-lg modal-content">
+            <h2 class="text-xl font-bold mb-4">Create New Classroom</h2>
+            <form id="create-classroom-form">
+                <div class="space-y-4">
+                    <div>
+                        <label for="class-name" class="text-sm font-medium">Class Name</label>
+                        <input id="class-name" type="text" required class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Grade 10 Science">
+                    </div>
+                    <div>
+                        <label for="class-subject" class="text-sm font-medium">Subject</label>
+                        <input id="class-subject" type="text" required class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Physics">
+                    </div>
+                    <div>
+                        <label for="class-section" class="text-sm font-medium">Section</label>
+                        <input id="class-section" type="text" class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., A">
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end gap-3">
+                    <button type="button" class="modal-close-btn px-4 py-2 text-sm font-medium rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600">Cancel</button>
+                    <button type="submit" class="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Student Modal -->
+    <div id="add-student-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-backdrop">
+        <div class="w-full max-w-md p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-lg modal-content">
+            <h2 class="text-xl font-bold mb-4">Add New Student</h2>
+            <form id="add-student-form">
+                <div class="space-y-4">
+                    <div>
+                        <label for="student-name" class="text-sm font-medium">Full Name</label>
+                        <input id="student-name" type="text" required class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="student-roll" class="text-sm font-medium">Roll Number</label>
+                        <input id="student-roll" type="text" required class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="student-email" class="text-sm font-medium">Student's Login Email</label>
+                        <input id="student-email" type="email" required class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="student@example.com">
+                    </div>
+                </div>
+                <p id="add-student-error" class="text-red-500 text-sm text-center hidden mt-2"></p>
+                <div class="mt-6 flex justify-end gap-3">
+                    <button type="button" class="modal-close-btn px-4 py-2 text-sm font-medium rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600">Cancel</button>
+                    <button type="submit" class="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 flex items-center justify-center">Add Student</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Edit Rankers Modal -->
+    <div id="edit-rankers-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-backdrop">
+        <div class="w-full max-w-2xl p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-lg modal-content">
+            <h2 class="text-xl font-bold mb-4">Edit Top Rankers</h2>
+            
+            <form id="add-ranker-form" class="grid grid-cols-1 md:grid-cols-5 gap-3 items-end mb-6 p-4 border rounded-lg dark:border-slate-700">
+                <div class="w-full md:w-20">
+                    <label for="ranker-rank" class="text-sm font-medium">Rank</label>
+                    <input id="ranker-rank" type="number" required class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="1">
+                </div>
+                <div class="md:col-span-2">
+                    <label for="ranker-name" class="text-sm font-medium">Student Name</label>
+                    <input id="ranker-name" type="text" required class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                 <div>
+                    <label for="ranker-class" class="text-sm font-medium">Class</label>
+                    <input id="ranker-class" type="text" required class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., CE01">
+                </div>
+                <div>
+                    <label for="ranker-branch" class="text-sm font-medium">Branch</label>
+                    <input id="ranker-branch" type="text" required class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., CSE">
+                </div>
+                 <div class="w-full md:w-32">
+                    <label for="ranker-percentage" class="text-sm font-medium">Percentage</label>
+                    <input id="ranker-percentage" type="text" required class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., 98%">
+                </div>
+                <div class="md:col-span-5">
+                    <button type="submit" class="w-full mt-2 px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 h-10">Add Ranker</button>
+                </div>
+            </form>
+
+            <h3 class="font-semibold mb-2">Current List</h3>
+            <div id="modal-rankers-list" class="space-y-2 max-h-60 overflow-y-auto">
+                <!-- List will be populated by JS -->
+            </div>
+
+            <div class="mt-6 flex justify-end">
+                <button type="button" class="modal-close-btn px-4 py-2 text-sm font-medium rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- QR Code Display Modal -->
+    <div id="qr-code-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-backdrop">
+        <div class="w-full max-w-sm p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-lg modal-content text-center">
+            <h2 id="qr-modal-title" class="text-xl font-bold mb-4">QR Code</h2>
+            <div id="qr-code-container" class="flex justify-center p-4 bg-white rounded-lg"></div>
+            <p id="qr-modal-subtitle" class="mt-2 text-sm text-slate-500 dark:text-slate-400"></p>
+            <button class="modal-close-btn mt-6 w-full py-2 px-4 font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700">Close</button>
+        </div>
+    </div>
+    
+    <!-- Restore Student Modal -->
+    <div id="restore-student-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-backdrop">
+        <div class="w-full max-w-md p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-lg modal-content">
+            <h2 class="text-xl font-bold mb-4">Student Exists</h2>
+            <p id="restore-student-text" class="text-slate-600 dark:text-slate-400">A deleted student with this email already exists. Do you want to restore them?</p>
+            <div class="mt-6 flex justify-end gap-3">
+                <button id="cancel-restore-btn" type="button" class="modal-close-btn px-4 py-2 text-sm font-medium rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600">Cancel</button>
+                <button id="confirm-restore-btn" type="button" class="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700">Restore</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Class Details Modal -->
+    <div id="class-details-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-backdrop">
+        <div class="w-full max-w-4xl p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-lg modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <div>
+                    <h2 id="class-modal-title" class="text-xl font-bold">Class Details</h2>
+                    <p id="class-modal-subject" class="text-sm text-slate-500 dark:text-slate-400">Lecture Name</p>
+                </div>
+                <button type="button" class="modal-close-btn p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            
+            <div id="class-modal-body" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                 <div class="md:col-span-1 space-y-4">
+                    <div class="text-center p-4 rounded-lg bg-slate-50 dark:bg-slate-700/50">
+                        <p class="text-sm text-slate-500 dark:text-slate-400">Your Attendance Ratio</p>
+                        <p id="class-attendance-ratio-modal" class="text-4xl font-bold text-blue-500">0%</p>
+                    </div>
+                    <div class="chart-container" style="height: 180px;">
+                        <canvas id="class-attendance-chart-modal"></canvas>
+                   </div>
+                   <div class="chart-container" style="height: 180px;">
+                        <canvas id="class-progress-chart-modal"></canvas>
+                   </div>
+                </div>
+
+                <div class="md:col-span-2">
+                    <div id="calendar-container">
+                        <div class="flex justify-between items-center mb-2">
+                            <button id="prev-month-btn" class="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700"><i data-lucide="chevron-left" class="h-5 w-5"></i></button>
+                            <h3 id="calendar-month-year" class="font-semibold text-base"></h3>
+                            <button id="next-month-btn" class="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700"><i data-lucide="chevron-right" class="h-5 w-5"></i></button>
+                        </div>
+                        <div id="calendar-grid" class="grid grid-cols-7 gap-1 text-center">
+                            <!-- Calendar will be generated here -->
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h3 class="font-semibold mb-2">Attendance History</h3>
+                        <div class="overflow-y-auto max-h-32">
+                            <table class="w-full text-sm text-left">
+                                <thead class="text-xs text-slate-700 uppercase bg-slate-50 dark:bg-slate-700 dark:text-slate-400 sticky top-0">
+                                    <tr>
+                                        <th class="px-4 py-2">Date</th>
+                                        <th class="px-4 py-2">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="class-history-table-body">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Exit Class Confirmation Modal -->
+    <div id="exit-class-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-backdrop">
+        <div class="w-full max-w-md p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-lg modal-content">
+            <h2 class="text-xl font-bold mb-4">Confirm Exit</h2>
+            <p class="text-slate-600 dark:text-slate-400">Are you sure you want to exit this class? You will need to be re-added by your teacher to rejoin.</p>
+            <div class="mt-6 flex justify-end gap-3">
+                <button type="button" class="modal-close-btn px-4 py-2 text-sm font-medium rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600">Cancel</button>
+                <button id="confirm-exit-btn" type="button" class="px-4 py-2 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700">Exit Class</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, addDoc, getDoc, getDocs, onSnapshot, query, where, serverTimestamp, writeBatch, updateDoc, orderBy, deleteDoc, collectionGroup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Provided Firebase configuration
+        const firebaseConfigFromUser = {
+            apiKey: "AIzaSyCaOBUE3k2dD7GmrHupYL7hdiBzfijFnHQ",
+            authDomain: "eduattend-e59d5.firebaseapp.com",
+            projectId: "eduattend-e59d5",
+            storageBucket: "eduattend-e59d5.appspot.com",
+            messagingSenderId: "797108114132",
+            appId: "1:797108114132:web:df2194a345088271f32141",
+            measurementId: "G-EJ7HB64EXB"
+        };
+        
+        // Use environment variables if available, otherwise fallback to user-provided config
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : firebaseConfigFromUser;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        // Initialize Firebase
+        const fbApp = initializeApp(firebaseConfig);
+        const auth = getAuth(fbApp);
+        const db = getFirestore(fbApp);
+        
+        // Global state
+        let userId = null;
+        let currentUserRole = null;
+        let currentClassId = null;
+        let unsubscribeListeners = []; // To store Firestore listeners
+        let charts = {};
+        let searchDebounceTimeout;
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            const loginPage = document.getElementById('login-page');
+            const app = document.getElementById('app');
+            const loginView = document.getElementById('login-view');
+            const signupView = document.getElementById('signup-view');
+            const roleSelectionView = document.getElementById('role-selection-view');
+            const loadingContent = document.getElementById('loading-content');
+            
+            const googleSignInBtn = document.getElementById('google-signin-btn');
+            const showSignupLink = document.getElementById('show-signup-link');
+            const showLoginLink = document.getElementById('show-login-link');
+            const loginForm = document.getElementById('login-form');
+            const signupForm = document.getElementById('signup-form');
+            const loginError = document.getElementById('login-error');
+            const signupError = document.getElementById('signup-error');
+            const globalError = document.getElementById('global-error');
+            
+            const setLoginUiState = (state, errorMsg = null) => {
+                loginView.classList.toggle('hidden', state !== 'login');
+                signupView.classList.toggle('hidden', state !== 'signup');
+                roleSelectionView.classList.toggle('hidden', state !== 'role');
+                loadingContent.classList.toggle('hidden', state !== 'loading');
+
+                if(state === 'loading' && errorMsg) {
+                    globalError.textContent = errorMsg;
+                    globalError.classList.remove('hidden');
+                } else {
+                    globalError.classList.add('hidden');
+                }
+            }
+
+            // --- AUTHENTICATION ---
+            onAuthStateChanged(auth, async (user) => {
+                try {
+                    if (user && !user.isAnonymous) {
+                        userId = user.uid;
+                        setLoginUiState('loading');
+                        loginPage.classList.remove('hidden');
+                        app.classList.add('hidden');
+
+                        const userProfileRef = doc(db, 'artifacts', appId, 'users', userId);
+                        const userProfileSnap = await getDoc(userProfileRef);
+
+                        if (userProfileSnap.exists() && userProfileSnap.data().role) {
+                            const profile = userProfileSnap.data();
+                            await showApp(profile.role, user);
+                        } else {
+                            if (!userProfileSnap.exists()) {
+                                await setDoc(userProfileRef, {
+                                    name: user.displayName,
+                                    email: user.email,
+                                    photoURL: user.photoURL,
+                                    createdAt: serverTimestamp()
+                                });
+                            }
+                            setLoginUiState('role');
+                        }
+                    } else {
+                        userId = null;
+                        currentUserRole = null;
+                        app.classList.add('hidden');
+                        loginPage.classList.remove('hidden');
+                        setLoginUiState('login');
+                        unsubscribeListeners.forEach(unsub => unsub());
+                        unsubscribeListeners = [];
+                    }
+                } catch (error) {
+                    console.error("Authentication state change error:", error);
+                    setLoginUiState('loading', 'Error connecting to the database. Check Firestore rules.');
+                }
+            });
+            
+            // --- View Toggling ---
+            showSignupLink.addEventListener('click', (e) => { e.preventDefault(); setLoginUiState('signup'); });
+            showLoginLink.addEventListener('click', (e) => { e.preventDefault(); setLoginUiState('login'); });
+
+            // --- Sign-in Methods ---
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = loginForm['login-email'].value;
+                const password = loginForm['login-password'].value;
+                loginError.classList.add('hidden');
+                setLoginUiState('loading');
+                try {
+                    await signInWithEmailAndPassword(auth, email, password);
+                } catch (error) {
+                    loginError.textContent = "Error: " + error.code.replace('auth/', '').replace(/-/g, ' ');
+                    loginError.classList.remove('hidden');
+                    setLoginUiState('login');
+                }
+            });
+
+            signupForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const name = signupForm['signup-name'].value;
+                const email = signupForm['signup-email'].value;
+                const password = signupForm['signup-password'].value;
+                signupError.classList.add('hidden');
+                setLoginUiState('loading');
+                try {
+                    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                    await updateProfile(userCredential.user, { displayName: name });
+                } catch (error) {
+                    signupError.textContent = "Error: " + error.code.replace('auth/', '').replace(/-/g, ' ');
+                    signupError.classList.remove('hidden');
+                    setLoginUiState('signup');
+                }
+            });
+            
+            googleSignInBtn.addEventListener('click', async () => {
+                const provider = new GoogleAuthProvider();
+                try {
+                    setLoginUiState('loading');
+                    await signInWithPopup(auth, provider);
+                } catch (error) {
+                    console.error("Google Sign-In failed:", error);
+                    setLoginUiState('login');
+                }
+            });
+            
+            window.selectRole = async (role) => {
+                if (!auth.currentUser) return;
+                setLoginUiState('loading');
+                const userProfileRef = doc(db, 'artifacts', appId, 'users', auth.currentUser.uid);
+                await setDoc(userProfileRef, { role: role }, { merge: true });
+                await showApp(role, auth.currentUser);
+            };
+
+            const showApp = async (role, user) => {
+                currentUserRole = role;
+                loginPage.classList.add('hidden');
+                app.classList.remove('hidden');
+                setupNav(role);
+                setupUserProfile(user, role);
+                setupNotificationListener();
+                setupSearch();
+                
+                const headerScanBtn = document.getElementById('header-scan-btn');
+                if (role === 'student') {
+                    headerScanBtn.classList.remove('hidden');
+                } else {
+                    headerScanBtn.classList.add('hidden');
+                }
+                
+                switchView('home');
+                destroyCharts();
+            };
+            
+            const headerScanBtn = document.getElementById('header-scan-btn');
+            headerScanBtn.addEventListener('click', () => {
+                if (currentUserRole === 'student') {
+                    switchView('attendance');
+                    setTimeout(() => {
+                        const startScanBtn = document.getElementById('start-scan-btn');
+                        // Ensure we are not already scanning
+                        if (startScanBtn && !isScanning) {
+                           startScanBtn.click();
+                        }
+                    }, 200);
+                }
+            });
+
+            window.logout = async () => { await signOut(auth); };
+            
+            // --- THEME MANAGEMENT ---
+            const themeToggleButtons = document.querySelectorAll('#theme-toggle, #settings-theme-toggle');
+            const htmlEl = document.documentElement;
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            htmlEl.classList.add(savedTheme);
+            const toggleTheme = () => {
+                htmlEl.classList.toggle('dark');
+                htmlEl.classList.toggle('light');
+                localStorage.setItem('theme', htmlEl.classList.contains('dark') ? 'dark' : 'light');
+                updateChartsTheme();
+            };
+            themeToggleButtons.forEach(btn => btn.addEventListener('click', toggleTheme));
+
+            // --- UI & NAVIGATION ---
+            const navConfig = {
+                admin: [{ id: 'home', icon: 'home', text: 'Home'}, { id: 'clubs', icon: 'users-2', text: 'Clubs'}, { id: 'dashboard', icon: 'layout-dashboard', text: 'Dashboard' }, { id: 'attendance', icon: 'calendar-check-2', text: 'Attendance' }, { id: 'students', icon: 'users', text: 'Students' }, { id: 'teachers', icon: 'contact', text: 'Teachers' }, { id: 'reports', icon: 'file-bar-chart-2', text: 'Reports' }, { id: 'settings', icon: 'settings', text: 'Settings' }],
+                teacher: [{ id: 'home', icon: 'home', text: 'Home'}, { id: 'clubs', icon: 'users-2', text: 'Clubs'}, { id: 'dashboard', icon: 'layout-dashboard', text: 'Dashboard' }, { id: 'classrooms', icon: 'school', text: 'Classrooms' }, { id: 'settings', icon: 'settings', text: 'Settings' }],
+                student: [{ id: 'home', icon: 'home', text: 'Home'}, { id: 'clubs', icon: 'users-2', text: 'Clubs'}, { id: 'dashboard', icon: 'layout-dashboard', text: 'Dashboard' }, { id: 'student-portal', icon: 'user-circle', text: 'Student Portal' }, { id: 'attendance', icon: 'calendar-check-2', text: 'Attendance' }, { id: 'settings', icon: 'settings', text: 'Settings' }]
+            };
+            const setupNav = (role) => {
+                document.querySelector('#sidebar-nav ul').innerHTML = navConfig[role].map((item, index) => `
+                    <li><a href="#" data-view="${item.id}" class="nav-link flex items-center p-3 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors duration-200 ${index === 0 ? 'bg-slate-100 dark:bg-slate-700 font-semibold' : ''}"><i data-lucide="${item.icon}" class="h-5 w-5 mr-3"></i><span>${item.text}</span></a></li>
+                `).join('');
+                lucide.createIcons();
+            };
+            const setupUserProfile = (user, role) => {
+                document.getElementById('user-name').textContent = user.displayName || 'User';
+                document.getElementById('user-role').textContent = role.charAt(0).toUpperCase() + role.slice(1);
+                document.getElementById('user-avatar').src = user.photoURL || `https://placehold.co/40x40/7c3aed/ffffff?text=${user.displayName?.[0] || 'U'}`;
+            };
+            const allViews = document.querySelectorAll('#main-content > div');
+            const switchView = (viewId) => {
+                allViews.forEach(v => v.classList.add('hidden'));
+                document.getElementById(`view-${viewId}`)?.classList.remove('hidden');
+                document.querySelectorAll('.nav-link').forEach(l => {
+                    l.classList.toggle('bg-slate-100', l.dataset.view === viewId);
+                    l.classList.toggle('dark:bg-slate-700', l.dataset.view === viewId);
+                    l.classList.toggle('font-semibold', l.dataset.view === viewId);
+                });
+                
+                unsubscribeListeners.forEach(unsub => unsub());
+                unsubscribeListeners = [];
+                currentClassId = null; // Reset class context
+
+                if (viewId === 'home') setupHomeView();
+                if (viewId === 'clubs') setupClubsView();
+                if (viewId === 'dashboard') initializeDashboardListeners();
+                if (viewId === 'attendance') setupAttendanceView();
+                if (viewId === 'classrooms') setupClassroomsView();
+                if (viewId === 'student-portal') setupStudentPortalView();
+            };
+            document.querySelector('#sidebar-nav').addEventListener('click', (e) => {
+                const link = e.target.closest('.nav-link');
+                if (link) { e.preventDefault(); switchView(link.dataset.view); }
+            });
+
+            // --- MODAL HANDLING ---
+            function setupModal(modalId, openBtnId) {
+                const modal = document.getElementById(modalId);
+                const openBtn = document.getElementById(openBtnId);
+                if (openBtn) openBtn.addEventListener('click', () => modal.classList.remove('hidden'));
+                modal.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('modal-backdrop') || e.target.closest('.modal-close-btn')) {
+                        modal.classList.add('hidden');
+                        if (modalId === 'class-details-modal') {
+                            if (charts.classDetailChart) charts.classDetailChart.destroy();
+                            if (charts.classProgressChart) charts.classProgressChart.destroy();
+                        }
+                    }
+                });
+            }
+            setupModal('create-classroom-modal', 'add-classroom-btn');
+            setupModal('add-student-modal', null); // Opened programmatically
+            setupModal('qr-code-modal', null); // Opened programmatically
+            setupModal('restore-student-modal', null); // Opened programmatically
+            setupModal('post-notice-modal', 'post-notice-btn');
+            setupModal('create-club-modal', 'create-club-btn');
+            setupModal('edit-rankers-modal', 'edit-rankers-btn');
+            setupModal('class-details-modal', null);
+            setupModal('exit-class-modal', null);
+
+
+            // --- HOME VIEW ---
+            function setupHomeView() {
+                listenToNotices();
+                listenToRankers();
+                const postNoticeBtn = document.getElementById('post-notice-btn');
+                const editRankersBtn = document.getElementById('edit-rankers-btn');
+                
+                if (currentUserRole === 'admin' || currentUserRole === 'teacher') {
+                    postNoticeBtn.classList.remove('hidden');
+                    editRankersBtn.classList.remove('hidden');
+                } else {
+                    postNoticeBtn.classList.add('hidden');
+                    editRankersBtn.classList.add('hidden');
+                }
+            }
+            
+            function listenToNotices() {
+                const noticesRef = collection(db, 'artifacts', appId, 'public', 'data', 'notices');
+                const q = query(noticesRef, orderBy('createdAt', 'desc'));
+                const unsub = onSnapshot(q, (snap) => {
+                    const container = document.getElementById('notice-board-container');
+                    if (snap.empty) {
+                        container.innerHTML = `<p class="text-slate-500 dark:text-slate-400 text-center pt-16">No notices posted yet.</p>`;
+                        return;
+                    }
+                    container.innerHTML = snap.docs.map(doc => {
+                        const notice = doc.data();
+                        const date = notice.createdAt?.toDate().toLocaleDateString() || 'Just now';
+                        const isAuthor = notice.authorId === userId;
+                        return `
+                            <div class="p-4 bg-white dark:bg-slate-800 rounded-lg shadow-inner relative">
+                                ${isAuthor ? `<button data-id="${doc.id}" class="delete-notice-btn absolute top-2 right-2 p-1 text-slate-400 hover:text-red-500"><i data-lucide="trash-2" class="h-4 w-4"></i></button>` : ''}
+                                <h3 class="font-bold pr-6">${notice.title}</h3>
+                                <p class="text-sm text-slate-600 dark:text-slate-400 mt-1">${notice.content}</p>
+                                <p class="text-xs text-slate-400 dark:text-slate-500 mt-2">Posted by ${notice.authorName} on ${date}</p>
+                            </div>
+                        `;
+                    }).join('');
+                    lucide.createIcons();
+                });
+                unsubscribeListeners.push(unsub);
+            }
+
+            document.getElementById('notice-board-container').addEventListener('click', async (e) => {
+                const deleteBtn = e.target.closest('.delete-notice-btn');
+                if (deleteBtn) {
+                    const noticeId = deleteBtn.dataset.id;
+                    if (confirm('Are you sure you want to delete this notice?')) {
+                         await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notices', noticeId));
+                    }
+                }
+            });
+
+
+            const postNoticeForm = document.getElementById('post-notice-form');
+            postNoticeForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const title = postNoticeForm['notice-title'].value;
+                const content = postNoticeForm['notice-content'].value;
+                
+                const noticesRef = collection(db, 'artifacts', appId, 'public', 'data', 'notices');
+                await addDoc(noticesRef, {
+                    title,
+                    content,
+                    authorName: auth.currentUser.displayName,
+                    authorId: userId,
+                    createdAt: serverTimestamp()
+                });
+                
+                postNoticeForm.reset();
+                document.getElementById('post-notice-modal').classList.add('hidden');
+            });
+            
+            // --- RANKERS LIST LOGIC ---
+            function listenToRankers() {
+                const rankersRef = collection(db, 'artifacts', appId, 'public', 'data', 'rankers');
+                const q = query(rankersRef, orderBy('rank'));
+                const unsub = onSnapshot(q, (snap) => {
+                    const container = document.getElementById('rankers-list-container');
+                    if (snap.empty) {
+                        container.innerHTML = `<p class="text-slate-500 dark:text-slate-400 text-center pt-16">No rankers have been added yet.</p>`;
+                    } else {
+                        container.innerHTML = snap.docs.map(doc => {
+                            const ranker = doc.data();
+                            const rankDisplay = ranker.rank;
+                            let rankColor = 'bg-slate-200 dark:bg-slate-700'; // default
+                            if (rankDisplay === 1) rankColor = 'bg-yellow-400 text-yellow-900'; // Gold
+                            if (rankDisplay === 2) rankColor = 'bg-slate-300 text-slate-800'; // Silver
+                            if (rankDisplay === 3) rankColor = 'bg-orange-400 text-orange-900'; // Bronze
+
+                            return `
+                                <div class="flex items-center gap-4 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                                    <div class="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-full ${rankColor} font-bold text-lg">
+                                       ${rankDisplay}
+                                    </div>
+                                    <div>
+                                        <p class="font-semibold text-slate-800 dark:text-slate-200">${ranker.name}</p>
+                                        <p class="text-sm text-slate-500 dark:text-slate-400">${ranker.class} - ${ranker.branch}</p>
+                                        <p class="text-sm font-bold text-blue-500">${ranker.percentage}</p>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+                    }
+                    updateModalRankerList(snap.docs);
+                });
+                unsubscribeListeners.push(unsub);
+            }
+
+            function updateModalRankerList(docs) {
+                const modalList = document.getElementById('modal-rankers-list');
+                if (!modalList) return;
+                if (docs.length === 0) {
+                    modalList.innerHTML = `<p class="text-slate-500 dark:text-slate-400 text-center">No rankers added.</p>`;
+                } else {
+                    modalList.innerHTML = docs.map(doc => {
+                        const ranker = doc.data();
+                        return `
+                            <div class="flex items-center justify-between p-2 rounded-lg bg-slate-100 dark:bg-slate-700">
+                                <div>
+                                    <span class="font-bold">${ranker.rank}.</span> ${ranker.name} 
+                                    <span class="text-sm text-slate-500">(${ranker.class} - ${ranker.branch}, ${ranker.percentage})</span>
+                                </div>
+                                <button data-id="${doc.id}" class="delete-ranker-btn p-2 text-red-500 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-full">
+                                    <i data-lucide="trash-2" class="h-4 w-4"></i>
+                                </button>
+                            </div>
+                        `;
+                    }).join('');
+                    lucide.createIcons();
+                }
+            }
+
+            const addRankerForm = document.getElementById('add-ranker-form');
+            addRankerForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const rankersRef = collection(db, 'artifacts', appId, 'public', 'data', 'rankers');
+                await addDoc(rankersRef, {
+                    rank: parseInt(addRankerForm['ranker-rank'].value, 10),
+                    name: addRankerForm['ranker-name'].value,
+                    class: addRankerForm['ranker-class'].value,
+                    branch: addRankerForm['ranker-branch'].value,
+                    percentage: addRankerForm['ranker-percentage'].value,
+                    createdAt: serverTimestamp()
+                });
+                addRankerForm.reset();
+            });
+
+            document.getElementById('modal-rankers-list').addEventListener('click', async (e) => {
+                const deleteBtn = e.target.closest('.delete-ranker-btn');
+                if (deleteBtn) {
+                    const rankerId = deleteBtn.dataset.id;
+                    const rankerRef = doc(db, 'artifacts', appId, 'public', 'data', 'rankers', rankerId);
+                    await deleteDoc(rankerRef);
+                }
+            });
+
+            // --- CLUBS VIEW ---
+            function setupClubsView() {
+                if (currentUserRole === 'student') {
+                    document.getElementById('create-club-btn').classList.remove('hidden');
+                } else {
+                     document.getElementById('create-club-btn').classList.add('hidden');
+                }
+                listenToClubs();
+            }
+
+            const createClubForm = document.getElementById('create-club-form');
+            createClubForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const submitButton = createClubForm.querySelector('button[type="submit"]');
+                const originalButtonHTML = submitButton.innerHTML;
+                submitButton.disabled = true;
+                submitButton.innerHTML = `<span class="loader-small"></span> Creating...`;
+                
+                const errorEl = document.getElementById('create-club-error');
+                errorEl.classList.add('hidden');
+
+                try {
+                    const name = createClubForm['club-name'].value;
+                    const description = createClubForm['club-description'].value;
+
+                    const clubsRef = collection(db, 'artifacts', appId, 'public', 'data', 'clubs');
+                    await addDoc(clubsRef, {
+                        name,
+                        description,
+                        creatorId: userId,
+                        creatorName: auth.currentUser.displayName,
+                        createdAt: serverTimestamp()
+                    });
+                    
+                    createClubForm.reset();
+                    document.getElementById('create-club-modal').classList.add('hidden');
+                } catch(error) {
+                    console.error("Error creating club:", error);
+                    errorEl.textContent = `Error: ${error.message}`;
+                    errorEl.classList.remove('hidden');
+                } finally {
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalButtonHTML;
+                }
+            });
+
+            function listenToClubs() {
+                const clubsRef = collection(db, 'artifacts', appId, 'public', 'data', 'clubs');
+                const q = query(clubsRef, orderBy('createdAt', 'desc'));
+                
+                const unsub = onSnapshot(q, async (snap) => {
+                    const container = document.getElementById('clubs-container');
+                    if(snap.empty) {
+                        container.innerHTML = '<p class="text-slate-500 dark:text-slate-400 text-center col-span-full">No clubs have been created yet.</p>';
+                        return;
+                    }
+                    
+                    const clubPromises = snap.docs.map(async (clubDoc) => {
+                        const club = {id: clubDoc.id, ...clubDoc.data()};
+                        const membersRef = collection(db, clubDoc.ref.path, 'members');
+                        const membersSnap = await getDocs(membersRef);
+                        const memberDoc = await getDoc(doc(membersRef, userId));
+
+                        return { ...club, memberCount: membersSnap.size, isMember: memberDoc.exists() };
+                    });
+
+                    const clubsData = await Promise.all(clubPromises);
+                    
+                    container.innerHTML = clubsData.map(club => `
+                        <div class="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md flex flex-col justify-between">
+                            <div>
+                                <h3 class="text-lg font-bold">${club.name}</h3>
+                                <p class="text-sm text-slate-500 dark:text-slate-400 mt-2">${club.description}</p>
+                            </div>
+                            <div class="mt-4 flex justify-between items-center">
+                                <div class="text-sm text-slate-400 flex items-center gap-1"><i data-lucide="users" class="h-4 w-4"></i> ${club.memberCount} members</div>
+                                <button data-id="${club.id}" ${club.isMember ? 'disabled' : ''} class="join-club-btn py-2 px-3 text-sm font-semibold rounded-lg ${club.isMember ? 'bg-slate-200 dark:bg-slate-700 text-slate-500' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}">
+                                    ${club.isMember ? 'Joined' : 'Join'}
+                                </button>
+                            </div>
+                        </div>
+                    `).join('');
+                    lucide.createIcons();
+                });
+                unsubscribeListeners.push(unsub);
+            }
+            
+            document.getElementById('clubs-container').addEventListener('click', async (e) => {
+                const joinBtn = e.target.closest('.join-club-btn');
+                if (joinBtn && !joinBtn.disabled) {
+                    const clubId = joinBtn.dataset.id;
+                    const memberRef = doc(db, 'artifacts', appId, 'public', 'data', 'clubs', clubId, 'members', userId);
+                    await setDoc(memberRef, {
+                        name: auth.currentUser.displayName,
+                        role: currentUserRole,
+                        joinedAt: serverTimestamp()
+                    });
+                }
+            });
+
+            // --- DASHBOARD LISTENERS ---
+            function initializeDashboardListeners() {
+                initializeCharts();
+                
+                // Reset all stats before populating
+                document.getElementById('total-subjects').textContent = '0';
+                document.getElementById('total-lectures').textContent = '0';
+                document.getElementById('total-attended').textContent = '0';
+                document.getElementById('clubs-joined').textContent = '0';
+                document.getElementById('total-attended-label').textContent = 'Total Attended';
+
+                
+                // --- Logic for Admins ---
+                if (currentUserRole === 'admin') {
+                    const usersRef = collection(db, 'artifacts', appId, 'users');
+                    const qTeachers = query(usersRef, where("role", "==", "teacher"));
+                    
+                    unsubscribeListeners.push(onSnapshot(qTeachers, snap => document.getElementById('total-lectures').textContent = snap.size));
+                    
+                    getDocs(qTeachers).then(teacherSnap => {
+                        const classPromises = teacherSnap.docs.map(teacherDoc => {
+                            const classesRef = collection(db, teacherDoc.ref.path, 'classes');
+                            return getDocs(classesRef);
+                        });
+                        Promise.all(classPromises).then(classSnaps => {
+                            const totalClasses = classSnaps.reduce((acc, snap) => acc + snap.size, 0);
+                            document.getElementById('total-subjects').textContent = totalClasses;
+                        });
+                    });
+
+                    document.getElementById('total-attended').textContent = 'N/A';
+
+                    const clubsRef = collection(db, 'artifacts', appId, 'public', 'data', 'clubs');
+                    unsubscribeListeners.push(onSnapshot(clubsRef, snap => document.getElementById('clubs-joined').textContent = snap.size));
+                } 
+                // --- Logic for Teachers ---
+                else if (currentUserRole === 'teacher') {
+                    const classesRef = collection(db, 'artifacts', appId, 'users', userId, 'classes');
+                    unsubscribeListeners.push(onSnapshot(classesRef, async (snap) => {
+                        document.getElementById('total-subjects').textContent = snap.size;
+                        document.getElementById('total-lectures').textContent = snap.size;
+                    }));
+
+                    document.getElementById('total-attended').textContent = 'N/A';
+
+                    const clubsRef = collection(db, 'artifacts', appId, 'public', 'data', 'clubs');
+                    unsubscribeListeners.push(onSnapshot(clubsRef, snap => document.getElementById('clubs-joined').textContent = snap.size));
+                } 
+                // --- Logic for Students ---
+                else if (currentUserRole === 'student') {
+                    document.getElementById('total-attended-label').textContent = 'Overall Attendance';
+
+                    // Clubs Joined by the student
+                    const clubsRef = collection(db, 'artifacts', appId, 'public', 'data', 'clubs');
+                    unsubscribeListeners.push(onSnapshot(query(clubsRef), async (snap) => {
+                        let joinedCount = 0;
+                        const memberChecks = snap.docs.map(clubDoc => getDoc(doc(db, clubDoc.ref.path, 'members', userId)));
+                        const memberResults = await Promise.all(memberChecks);
+                        memberResults.forEach(memberDoc => {
+                            if (memberDoc.exists()) joinedCount++;
+                        });
+                        document.getElementById('clubs-joined').textContent = joinedCount;
+                    }));
+                    
+                    // Calculate and display attendance stats
+                    async function getStudentAttendanceStats() {
+                        const studentEmail = auth.currentUser.email;
+                        const enrollmentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'studentEnrollments');
+                        const q = query(enrollmentsRef, where("studentEmail", "==", studentEmail));
+                        
+                        const unsub = onSnapshot(q, async (enrollmentsSnap) => {
+                            const enrolledClasses = enrollmentsSnap.docs.map(doc => doc.data());
+                            document.getElementById('total-subjects').textContent = enrolledClasses.length;
+
+                            let totalAttendedCount = 0;
+                            let totalLecturesCount = 0;
+
+                            if (enrolledClasses.length > 0) {
+                                const attendancePromises = enrolledClasses.map(async (enrolledClass) => {
+                                    const classRef = doc(db, 'artifacts', appId, 'users', enrolledClass.teacherId, 'classes', enrolledClass.classId);
+                                    const attendanceRef = collection(classRef, 'attendance');
+                                    
+                                    const allAttendanceSnap = await getDocs(attendanceRef);
+                                    const uniqueDays = new Set(allAttendanceSnap.docs.map(d => d.data().date));
+                                    
+                                    const studentAttendanceQuery = query(attendanceRef, where("studentId", "==", enrolledClass.studentId));
+                                    const studentAttendanceSnap = await getDocs(studentAttendanceQuery);
+                                    
+                                    return {
+                                        lecturesInClass: uniqueDays.size,
+                                        attendedInClass: studentAttendanceSnap.size
+                                    };
+                                });
+
+                                const results = await Promise.all(attendancePromises);
+                                results.forEach(res => {
+                                    totalLecturesCount += res.lecturesInClass;
+                                    totalAttendedCount += res.attendedInClass;
+                                });
+                            }
+
+                            document.getElementById('total-lectures').textContent = totalLecturesCount;
+                            const ratio = totalLecturesCount > 0 ? ((totalAttendedCount / totalLecturesCount) * 100).toFixed(1) : 0;
+                            document.getElementById('total-attended').textContent = `${ratio}%`;
+                            
+                            // Update Doughnut Chart for Overall Attendance
+                            const missedCount = totalLecturesCount - totalAttendedCount;
+                            const perfCtx = document.getElementById('classPerformanceChart')?.getContext('2d');
+                            if (perfCtx) {
+                                if (charts.classPerformance) {
+                                    charts.classPerformance.destroy();
+                                }
+                                document.getElementById('overall-attendance-chart-title').textContent = 'Overall Attendance Ratio';
+                                charts.classPerformance = new Chart(perfCtx, {
+                                    type: 'doughnut',
+                                    data: {
+                                        labels: ['Attended', 'Missed'],
+                                        datasets: [{
+                                            label: 'Lectures',
+                                            data: [totalAttendedCount, missedCount > 0 ? missedCount : 0],
+                                            backgroundColor: [ '#3b82f6', '#ef4444' ],
+                                            borderColor: [
+                                                 document.documentElement.classList.contains('dark') ? '#1e293b' : '#ffffff',
+                                                 document.documentElement.classList.contains('dark') ? '#1e293b' : '#ffffff'
+                                            ],
+                                            hoverOffset: 4
+                                        }]
+                                    },
+                                    options: { 
+                                        responsive: true, 
+                                        maintainAspectRatio: false, 
+                                        plugins: { 
+                                            legend: { 
+                                                position: 'bottom',
+                                                labels: { 
+                                                    color: document.documentElement.classList.contains('dark') ? '#e2e8f0' : '#475569' 
+                                                } 
+                                            } 
+                                        }
+                                    }
+                                });
+                            }
+                        });
+                        unsubscribeListeners.push(unsub);
+                    }
+                    getStudentAttendanceStats();
+                }
+            }
+            
+            // --- ATTENDANCE VIEW SETUP ---
+            function setupAttendanceView() {
+                if (currentUserRole === 'student') {
+                    document.getElementById('student-attendance-view').classList.remove('hidden');
+                    generateStudentIdQRCode();
+                    setupStudentDetailsView();
+                    displayStudentClasses(); 
+                } else if (currentUserRole === 'admin') {
+                    document.getElementById('admin-global-attendance-view').classList.remove('hidden');
+                }
+            }
+
+            async function displayStudentClasses() {
+                const container = document.getElementById('student-classes-container');
+                if (!container) return;
+                container.innerHTML = `<p class="text-slate-500 dark:text-slate-400">Loading your classes...</p>`;
+                
+                const enrollmentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'studentEnrollments');
+                const q = query(enrollmentsRef, where("studentEmail", "==", auth.currentUser.email));
+
+                const unsub = onSnapshot(q, (snap) => {
+                    if (snap.empty) {
+                         container.innerHTML = `<p class="text-slate-500 dark:text-slate-400 col-span-full text-center">You are not enrolled in any classes yet.</p>`;
+                         return;
+                    }
+                    container.innerHTML = snap.docs.map(doc => {
+                        const cls = doc.data();
+                        return `
+                            <div class="student-class-card p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg transition-colors relative"
+                                 data-class-id="${cls.classId}"
+                                 data-teacher-id="${cls.teacherId}"
+                                 data-class-name="${cls.className}"
+                                 data-class-subject="${cls.classSubject}"
+                                 data-student-id="${cls.studentId}"
+                                 data-enrollment-id="${doc.id}">
+                                <div class="class-card-main-content cursor-pointer">
+                                    <h4 class="font-semibold text-slate-800 dark:text-slate-200">${cls.className}</h4>
+                                    <p class="text-sm text-slate-600 dark:text-slate-400">${cls.classSubject}</p>
+                                    <p class="text-xs text-slate-500 mt-2">Teacher: ${cls.teacherName}</p>
+                                </div>
+                                <button class="exit-class-btn absolute top-2 right-2 p-1.5 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors">
+                                    <i data-lucide="x-circle" class="h-4 w-4"></i>
+                                </button>
+                            </div>
+                        `;
+                    }).join('');
+                    lucide.createIcons();
+                });
+                unsubscribeListeners.push(unsub);
+            }
+            
+            // --- CLASSROOMS VIEW SETUP (Teacher) ---
+            function setupClassroomsView() {
+                const classroomListView = document.getElementById('classroom-list-view');
+                const classroomDetailView = document.getElementById('classroom-detail-view');
+                classroomListView.classList.remove('hidden');
+                classroomDetailView.classList.add('hidden');
+                listenToClassrooms();
+            }
+
+            const createClassroomForm = document.getElementById('create-classroom-form');
+            createClassroomForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const className = createClassroomForm['class-name'].value;
+                const subject = createClassroomForm['class-subject'].value;
+                const section = createClassroomForm['class-section'].value;
+
+                const classesRef = collection(db, 'artifacts', appId, 'users', userId, 'classes');
+                await addDoc(classesRef, {
+                    name: className,
+                    subject: subject,
+                    section: section,
+                    createdAt: serverTimestamp()
+                });
+
+                createClassroomForm.reset();
+                document.getElementById('create-classroom-modal').classList.add('hidden');
+            });
+
+            function listenToClassrooms() {
+                const classesRef = collection(db, 'artifacts', appId, 'users', userId, 'classes');
+                const unsub = onSnapshot(classesRef, (snap) => {
+                    const container = document.getElementById('classrooms-container');
+                    if (snap.empty) {
+                        container.innerHTML = `<p class="text-slate-500 dark:text-slate-400 md:col-span-2 lg:col-span-3 text-center">No classrooms created yet. Click 'Create Classroom' to get started.</p>`;
+                        return;
+                    }
+                    container.innerHTML = snap.docs.map(doc => {
+                        const classroom = doc.data();
+                        return `
+                            <div class="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md flex flex-col justify-between">
+                                <div>
+                                    <h3 class="text-lg font-bold">${classroom.name}</h3>
+                                    <p class="text-sm text-slate-500 dark:text-slate-400">${classroom.subject} - Section ${classroom.section}</p>
+                                </div>
+                                <div class="mt-4 flex gap-2">
+                                    <button data-id="${doc.id}" class="manage-students-btn flex-1 py-2 px-3 text-sm font-semibold rounded-lg bg-indigo-100 text-indigo-700 hover:bg-indigo-200">Manage Students</button>
+                                    <button data-id="${doc.id}" class="view-attendance-btn flex-1 py-2 px-3 text-sm font-semibold rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200">Attendance</button>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                });
+                unsubscribeListeners.push(unsub);
+            }
+            
+            document.getElementById('view-classrooms').addEventListener('click', (e) => {
+                if (e.target.closest('.manage-students-btn')) {
+                    currentClassId = e.target.closest('.manage-students-btn').dataset.id;
+                    showClassroomDetailView('manage-students');
+                }
+                if (e.target.closest('.view-attendance-btn')) {
+                    currentClassId = e.target.closest('.view-attendance-btn').dataset.id;
+                    showClassroomDetailView('view-attendance');
+                }
+            });
+            
+            async function showClassroomDetailView(viewType) {
+                const classDoc = await getDoc(doc(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId));
+                if (!classDoc.exists()) return;
+                const classroom = classDoc.data();
+                
+                document.getElementById('classroom-list-view').classList.add('hidden');
+                const detailView = document.getElementById('classroom-detail-view');
+                detailView.classList.remove('hidden');
+
+                let content = `
+                    <div class="flex items-center gap-4 mb-6">
+                        <button id="back-to-classrooms" class="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700"><i data-lucide="arrow-left"></i></button>
+                        <div>
+                            <h1 class="text-3xl font-bold">${classroom.name}</h1>
+                            <p class="text-slate-500 dark:text-slate-400">${classroom.subject} - Section ${classroom.section}</p>
+                        </div>
+                    </div>
+                `;
+
+                if (viewType === 'manage-students') {
+                    content += `
+                        <div class="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="font-semibold">Student List</h3>
+                                <button id="show-add-student-modal" class="flex items-center gap-2 py-2 px-4 text-sm font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700"><i data-lucide="user-plus"></i> Add Student</button>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm text-left">
+                                    <thead class="text-xs text-slate-700 uppercase bg-slate-50 dark:bg-slate-700 dark:text-slate-400"><tr><th class="px-6 py-3">Name</th><th class="px-6 py-3">Roll No.</th><th class="px-6 py-3">Email/ID</th><th class="px-6 py-3">Actions</th></tr></thead>
+                                    <tbody id="class-students-list"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    `;
+                    detailView.innerHTML = content;
+                    listenToClassStudents();
+                } else if (viewType === 'view-attendance') {
+                    content += `
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <div class="lg:col-span-2 p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="font-semibold">Manual Attendance</h3>
+                                    <div class="flex gap-2">
+                                        <button id="export-class-csv" class="p-2 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600"><i data-lucide="download"></i> CSV</button>
+                                        <button id="export-class-pdf" class="p-2 rounded-lg bg-red-500 text-white hover:bg-red-600"><i data-lucide="download"></i> PDF</button>
+                                    </div>
+                                </div>
+                                <p class="text-sm text-slate-500 mb-4">Date: ${new Date().toLocaleDateString()}</p>
+                                <div id="manual-attendance-list" class="space-y-3 max-h-96 overflow-y-auto"></div>
+                            </div>
+                             <div class="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md text-center">
+                                <h3 class="font-semibold mb-4">Live Attendance Session</h3>
+                                <button id="start-class-attendance-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700"><i data-lucide="qr-code"></i> Start Attendance</button>
+                                <p class="text-xs text-slate-400 mt-2">Generates a QR code for students to scan.</p>
+                                <div class="mt-6">
+                                    <h4 class="font-semibold">Today's Report</h4>
+                                    <p class="text-4xl font-bold my-2" id="class-attendance-percentage">0%</p>
+                                    <p class="text-sm text-slate-500" id="class-attendance-ratio">0/0 Students Present</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-6 p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md">
+                            <h3 class="font-semibold mb-4">Per-Student Report</h3>
+                            <div id="student-attendance-reports"></div>
+                        </div>
+                    `;
+                    detailView.innerHTML = content;
+                    listenToClassAttendance();
+                }
+                
+                lucide.createIcons();
+                document.getElementById('back-to-classrooms').addEventListener('click', setupClassroomsView);
+                document.getElementById('show-add-student-modal')?.addEventListener('click', () => {
+                    document.getElementById('add-student-error').classList.add('hidden');
+                    addStudentForm.reset();
+                    document.getElementById('add-student-modal').classList.remove('hidden');
+                });
+                document.getElementById('start-class-attendance-btn')?.addEventListener('click', startClassAttendanceSession);
+                document.getElementById('export-class-csv')?.addEventListener('click', exportClassAttendanceCSV);
+                document.getElementById('export-class-pdf')?.addEventListener('click', exportClassAttendancePDF);
+            }
+
+            const addStudentForm = document.getElementById('add-student-form');
+            addStudentForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                if (!currentClassId) return;
+
+                const submitButton = addStudentForm.querySelector('button[type="submit"]');
+                const originalButtonHTML = submitButton.innerHTML;
+                submitButton.disabled = true;
+                submitButton.innerHTML = `<span class="loader-small"></span> Adding...`;
+
+                const name = addStudentForm['student-name'].value;
+                const roll = addStudentForm['student-roll'].value;
+                const email = addStudentForm['student-email'].value;
+                const addStudentError = document.getElementById('add-student-error');
+                addStudentError.classList.add('hidden');
+
+                try {
+                    const studentsRef = collection(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId, 'students');
+                    const q = query(studentsRef, where("email", "==", email));
+                    const existingStudentSnap = await getDocs(q);
+
+                    let studentIdForNotification;
+
+                    if (!existingStudentSnap.empty) {
+                        const studentDoc = existingStudentSnap.docs[0];
+                        studentIdForNotification = studentDoc.id;
+                        if (studentDoc.data().deleted) {
+                            await updateDoc(studentDoc.ref, { 
+                                deleted: false,
+                                name: name,
+                                roll: roll
+                            });
+                        } else {
+                            throw new Error("Student with this email already exists in this class.");
+                        }
+                    } else {
+                        const studentDocRef = await addDoc(studentsRef, { name, roll, email, createdAt: serverTimestamp(), deleted: false });
+                        studentIdForNotification = studentDocRef.id;
+                    }
+
+                    // Create or update public enrollment record
+                    const classDoc = await getDoc(doc(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId));
+                    const classData = classDoc.data();
+                    const enrollmentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'studentEnrollments');
+                     const qEnroll = query(enrollmentsRef, where("studentEmail", "==", email), where("classId", "==", currentClassId));
+                    const enrollSnap = await getDocs(qEnroll);
+
+                    if (enrollSnap.empty) {
+                        await addDoc(enrollmentsRef, {
+                            studentEmail: email,
+                            studentId: studentIdForNotification,
+                            classId: currentClassId,
+                            className: classData.name,
+                            classSubject: classData.subject,
+                            teacherId: userId,
+                            teacherName: auth.currentUser.displayName,
+                        });
+                    }
+                    
+                    // Find student's user ID to send notification
+                    const usersRef = collection(db, 'artifacts', appId, 'users');
+                    const qUser = query(usersRef, where("email", "==", email));
+                    const userSnap = await getDocs(qUser);
+                    if (!userSnap.empty) {
+                        const studentUserId = userSnap.docs[0].id;
+                        const notificationsRef = collection(db, 'artifacts', appId, 'users', studentUserId, 'notifications');
+                        await addDoc(notificationsRef, {
+                            message: `You have been added to ${classData.name} by ${auth.currentUser.displayName}.`,
+                            read: false,
+                            createdAt: serverTimestamp()
+                        });
+                    }
+
+                    addStudentForm.reset();
+                    document.getElementById('add-student-modal').classList.add('hidden');
+                } catch (error) {
+                    console.error("Error adding student:", error);
+                    addStudentError.textContent = error.message;
+                    addStudentError.classList.remove('hidden');
+                } finally {
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalButtonHTML;
+                }
+            });
+            
+            function listenToClassStudents() {
+                const studentsRef = collection(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId, 'students');
+                const q = query(studentsRef, where("deleted", "!=", true));
+                const unsub = onSnapshot(q, (snap) => {
+                    const list = document.getElementById('class-students-list');
+                    if (snap.empty) {
+                        list.innerHTML = `<tr><td colspan="4" class="text-center p-4">No students added yet.</td></tr>`;
+                        return;
+                    }
+                    list.innerHTML = snap.docs.map(doc => `
+                        <tr class="border-b dark:border-slate-700">
+                            <td class="px-6 py-4">${doc.data().name}</td>
+                            <td class="px-6 py-4">${doc.data().roll}</td>
+                            <td class="px-6 py-4">${doc.data().email}</td>
+                            <td class="px-6 py-4 flex gap-2">
+                                <button class="show-student-qr-btn p-2 text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md" data-id="${doc.id}" data-name="${doc.data().name}"><i data-lucide="qr-code"></i></button>
+                                <button class="delete-student-btn p-2 text-red-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md" data-id="${doc.id}" data-email="${doc.data().email}"><i data-lucide="trash-2"></i></button>
+                            </td>
+                        </tr>
+                    `).join('');
+                    lucide.createIcons();
+                });
+                unsubscribeListeners.push(unsub);
+            }
+
+            document.getElementById('classroom-detail-view').addEventListener('click', async (e) => {
+                const showQrBtn = e.target.closest('.show-student-qr-btn');
+                if (showQrBtn) {
+                    // QR Code logic here
+                }
+                const deleteBtn = e.target.closest('.delete-student-btn');
+                if(deleteBtn) {
+                    const studentId = deleteBtn.dataset.id;
+                    const studentEmail = deleteBtn.dataset.email;
+
+                    // Mark student as deleted in private collection
+                    const studentRef = doc(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId, 'students', studentId);
+                    await updateDoc(studentRef, { deleted: true });
+                    
+                    // NEW: Delete public enrollment record
+                    const enrollmentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'studentEnrollments');
+                    const q = query(enrollmentsRef, where("studentEmail", "==", studentEmail), where("classId", "==", currentClassId));
+                    const enrollSnap = await getDocs(q);
+                    enrollSnap.forEach(doc => {
+                        deleteDoc(doc.ref);
+                    });
+                }
+            });
+
+            async function startClassAttendanceSession() {
+                const sessionData = JSON.stringify({ classId: currentClassId, teacherId: userId, session: Date.now() });
+                const qrContainer = document.getElementById('qr-code-container');
+                qrContainer.innerHTML = '';
+                new QRCode(qrContainer, { text: sessionData, width: 200, height: 200 });
+                document.getElementById('qr-modal-title').textContent = 'Live Attendance QR Code';
+                document.getElementById('qr-modal-subtitle').textContent = 'Students can scan this to mark attendance.';
+                document.getElementById('qr-code-modal').classList.remove('hidden');
+            }
+
+            function listenToClassAttendance() {
+                // ... same as before
+            }
+
+            document.getElementById('classroom-detail-view').addEventListener('click', async (e) => {
+                const markBtn = e.target.closest('.mark-manual-btn');
+                if (markBtn) {
+                    // ... same as before
+                }
+            });
+            
+            async function exportClassAttendanceCSV() { /* ... */ }
+            async function exportClassAttendancePDF() { /* ... */ }
+
+            // --- Chart functions ---
+             const getChartOptions = () => ({ responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: htmlEl.classList.contains('dark') ? '#e2e8f0' : '#475569' } } }, scales: { y: { beginAtZero: true, grid: { color: htmlEl.classList.contains('dark') ? '#334155' : '#e2e8f0' }, ticks: { color: htmlEl.classList.contains('dark') ? '#94a3b8' : '#64748b' } }, x: { grid: { color: htmlEl.classList.contains('dark') ? '#334155' : '#e2e8f0' }, ticks: { color: htmlEl.classList.contains('dark') ? '#94a3b8' : '#64748b' } } } });
+            const initializeCharts = () => {
+                const trendCtx = document.getElementById('attendanceTrendChart')?.getContext('2d');
+                if(trendCtx) charts.attendanceTrend = new Chart(trendCtx, { type: 'line', data: { labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], datasets: [{ label: 'Attendance %', data: [95, 96, 94, 97, 92, 98, 95], borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', tension: 0.4, fill: true }] }, options: getChartOptions() });
+                
+                // For non-students, create the placeholder chart. For students, this will be handled by the data listener.
+                if (currentUserRole !== 'student') {
+                    const perfCtx = document.getElementById('classPerformanceChart')?.getContext('2d');
+                    if(perfCtx) {
+                        document.getElementById('overall-attendance-chart-title').textContent = 'Attendance by Class';
+                        charts.classPerformance = new Chart(perfCtx, { type: 'doughnut', data: { labels: ['Class 10A', 'Class 11B', 'Class 12C'], datasets: [{ label: 'Attendance %', data: [95, 92, 98], backgroundColor: ['#3b82f6', '#8b5cf6', '#10b981'], hoverOffset: 4 }] }, options: { ...getChartOptions(), scales: {} } });
+                    }
+                }
+            };
+            const destroyCharts = () => { Object.values(charts).forEach(c => c.destroy()); charts = {}; };
+            const updateChartsTheme = () => { 
+                Object.values(charts).forEach(c => { 
+                    c.options = getChartOptions(); 
+                    if (c.config.type === 'doughnut' || c.config.type === 'pie') {
+                        c.options.scales = {};
+                         c.data.datasets.forEach(dataset => {
+                            dataset.borderColor = document.documentElement.classList.contains('dark') ? '#1e293b' : '#ffffff';
+                        });
+                    }
+                    c.update(); 
+                }); 
+            };
+
+            // --- STUDENT PORTAL ---
+            async function setupStudentPortalView() {
+                if (!auth.currentUser) return;
+
+                const userDocRef = doc(db, 'artifacts', appId, 'users', userId);
+                const userDocSnap = await getDoc(userDocRef);
+                const userData = userDocSnap.exists() ? userDocSnap.data() : {};
+                
+                document.getElementById('portal-name').value = auth.currentUser.displayName || '';
+                document.getElementById('portal-email').value = auth.currentUser.email || '';
+                document.getElementById('portal-enrollment').value = userData.enrollmentNumber || '';
+                document.getElementById('portal-idcard').value = userData.idCardNumber || '';
+                document.getElementById('profile-photo-preview').src = userData.photoURL || `https://placehold.co/128x128/e2e8f0/64748b?text=${auth.currentUser.displayName?.[0] || 'U'}`;
+                
+                const photoInput = document.getElementById('profile-photo-input');
+                const photoPreview = document.getElementById('profile-photo-preview');
+                const portalError = document.getElementById('portal-error');
+
+                photoInput.onchange = () => {
+                    const file = photoInput.files[0];
+                    if (!file) return;
+
+                    if (file.size > 200 * 1024) { // 200 KB
+                        portalError.textContent = "Image size must be under 200KB.";
+                        portalError.classList.remove('hidden');
+                        photoInput.value = ""; // Reset input
+                        return;
+                    }
+                    portalError.classList.add('hidden');
+                    const reader = new FileReader();
+                    reader.onload = (e) => { photoPreview.src = e.target.result; };
+                    reader.readAsDataURL(file);
+                };
+            }
+
+            const studentPortalForm = document.getElementById('student-portal-form');
+            studentPortalForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const submitButton = studentPortalForm.querySelector('button[type="submit"]');
+                const originalButtonHTML = submitButton.innerHTML;
+                submitButton.disabled = true;
+                submitButton.innerHTML = `<span class="loader-small"></span> Saving...`;
+
+                const portalError = document.getElementById('portal-error');
+                const portalSuccess = document.getElementById('portal-success');
+                portalError.classList.add('hidden');
+                portalSuccess.classList.add('hidden');
+                
+                try {
+                    const userDocRef = doc(db, 'artifacts', appId, 'users', userId);
+                    const photoFile = document.getElementById('profile-photo-input').files[0];
+                    let photoDataUrl = null;
+
+                    if (photoFile) {
+                        photoDataUrl = await new Promise((resolve, reject) => {
+                             if (photoFile.size > 200 * 1024) {
+                                reject(new Error("Image size must be under 200KB."));
+                                return;
+                            }
+                            const reader = new FileReader();
+                            reader.onload = e => resolve(e.target.result);
+                            reader.onerror = err => reject(err);
+                            reader.readAsDataURL(photoFile);
+                        });
+                    }
+                    
+                    const dataToUpdate = {
+                        enrollmentNumber: document.getElementById('portal-enrollment').value,
+                        idCardNumber: document.getElementById('portal-idcard').value,
+                    };
+                    
+                    if (photoDataUrl) {
+                        dataToUpdate.photoURL = photoDataUrl;
+                    }
+
+                    await updateDoc(userDocRef, dataToUpdate);
+                    
+                    // The user's avatar in the header should reflect the new photo immediately.
+                    const userDocSnap = await getDoc(userDocRef);
+                    if(userDocSnap.exists()) {
+                         document.getElementById('user-avatar').src = userDocSnap.data().photoURL || `https://placehold.co/40x40/7c3aed/ffffff?text=${auth.currentUser.displayName?.[0] || 'U'}`;
+                    }
+
+
+                    portalSuccess.textContent = "Profile updated successfully!";
+                    portalSuccess.classList.remove('hidden');
+                    setTimeout(() => portalSuccess.classList.add('hidden'), 3000);
+
+                } catch (error) {
+                    portalError.textContent = error.message;
+                    portalError.classList.remove('hidden');
+                    console.error("Error updating profile:", error);
+                } finally {
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalButtonHTML;
+                }
+            });
+
+
+            // --- QR CODE FUNCTIONALITY ---
+            function setupStudentDetailsView() {
+                if (!auth.currentUser) return;
+                const nameEl = document.getElementById('student-detail-name');
+                const emailEl = document.getElementById('student-detail-email');
+                if (nameEl) nameEl.textContent = auth.currentUser.displayName || 'N/A';
+                if (emailEl) emailEl.textContent = auth.currentUser.email || 'N/A';
+            }
+
+            async function generateStudentIdQRCode() {
+                if (!auth.currentUser) return;
+                const qrContainer = document.getElementById('student-qr-code');
+                qrContainer.innerHTML = '';
+                new QRCode(qrContainer, { text: JSON.stringify({ studentUserId: auth.currentUser.uid }), width: 180, height: 180 });
+            }
+            const qrCodeScanner = new Html5Qrcode("qr-reader");
+            const startScanBtn = document.getElementById('start-scan-btn');
+            const scanResultEl = document.getElementById('scan-result');
+            let isScanning = false;
+            const onScanSuccess = async (decodedText) => {
+                scanResultEl.className = 'mt-4 text-center font-medium text-blue-500';
+                scanResultEl.textContent = 'Processing...';
+                try {
+                    const data = JSON.parse(decodedText);
+                    if (data.classId && data.teacherId && data.session) {
+                        const requestsRef = collection(db, 'artifacts', appId, 'public', 'attendanceRequests');
+                        await addDoc(requestsRef, {
+                            teacherId: data.teacherId,
+                            classId: data.classId,
+                            studentEmail: auth.currentUser.email,
+                            studentName: auth.currentUser.displayName,
+                            timestamp: serverTimestamp(),
+                        });
+                        scanResultEl.textContent = `Success! Attendance request sent.`;
+                        scanResultEl.className = 'mt-4 text-center font-medium text-emerald-500';
+                    } else {
+                        scanResultEl.textContent = 'Invalid Class QR Code.';
+                        scanResultEl.className = 'mt-4 text-center font-medium text-red-500';
+                    }
+                } catch (e) {
+                    console.error(e);
+                    scanResultEl.textContent = 'Invalid or expired QR Code.';
+                    scanResultEl.className = 'mt-4 text-center font-medium text-red-500';
+                }
+                stopScanning();
+            };
+            const startScanning = () => { qrCodeScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } }, onScanSuccess, ()=>{}); isScanning = true; startScanBtn.textContent = 'Stop Scanning'; startScanBtn.classList.replace('bg-blue-600', 'bg-red-600'); };
+            const stopScanning = () => { if(isScanning) { qrCodeScanner.stop().then(() => { isScanning = false; startScanBtn.textContent = 'Scan Attendance QR Code'; startScanBtn.classList.replace('bg-red-600', 'bg-blue-600'); }); }};
+            startScanBtn.addEventListener('click', () => isScanning ? stopScanning() : startScanning());
+            
+            // --- CLASS DETAILS MODAL & CALENDAR ---
+            let currentCalendarDate = new Date();
+            let currentClassAttendanceData = { present: [], absent: [] };
+
+            async function openClassDetailsModal(data) {
+                const { classId, teacherId, className, studentId, classSubject } = data;
+                
+                const modal = document.getElementById('class-details-modal');
+                document.getElementById('class-modal-title').textContent = className;
+                document.getElementById('class-modal-subject').textContent = classSubject;
+                modal.classList.remove('hidden');
+                lucide.createIcons();
+
+                // Fetch attendance data
+                const classRef = doc(db, 'artifacts', appId, 'users', teacherId, 'classes', classId);
+                const attendanceRef = collection(classRef, 'attendance');
+
+                const allAttendanceSnap = await getDocs(attendanceRef);
+                const uniqueLectureDates = [...new Set(allAttendanceSnap.docs.map(d => d.data().date))].sort();
+
+                const studentAttendanceQuery = query(attendanceRef, where("studentId", "==", studentId));
+                const studentAttendanceSnap = await getDocs(studentAttendanceQuery);
+                const presentDates = new Set(studentAttendanceSnap.docs.map(d => d.data().date));
+                
+                const absentDates = uniqueLectureDates.filter(date => !presentDates.has(date));
+
+                currentClassAttendanceData = {
+                    present: [...presentDates],
+                    absent: absentDates
+                };
+
+                // Calculate and display ratio
+                const ratio = uniqueLectureDates.length > 0 ? ((presentDates.size / uniqueLectureDates.length) * 100).toFixed(1) : 0;
+                document.getElementById('class-attendance-ratio-modal').textContent = `${ratio}%`;
+                
+                // Destroy old charts if they exist
+                if (charts.classDetailChart) charts.classDetailChart.destroy();
+                if (charts.classProgressChart) charts.classProgressChart.destroy();
+                
+                // Doughnut Chart
+                const doughnutCtx = document.getElementById('class-attendance-chart-modal').getContext('2d');
+                charts.classDetailChart = new Chart(doughnutCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Present', 'Absent'],
+                        datasets: [{
+                            data: [presentDates.size, absentDates.length],
+                            backgroundColor: ['#3b82f6', '#ef4444'],
+                            hoverOffset: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom', labels: { color: document.documentElement.classList.contains('dark') ? '#e2e8f0' : '#475569' } }
+                        }
+                    }
+                });
+
+                // Progress Line Chart Data
+                let attendedCount = 0;
+                const progressData = uniqueLectureDates.map((date, index) => {
+                    if (presentDates.has(date)) {
+                        attendedCount++;
+                    }
+                    return (attendedCount / (index + 1)) * 100;
+                });
+                
+                const progressCtx = document.getElementById('class-progress-chart-modal').getContext('2d');
+                charts.classProgressChart = new Chart(progressCtx, {
+                    type: 'line',
+                    data: {
+                        labels: uniqueLectureDates.map(d => new Date(d).toLocaleDateString('en-US', {month: 'short', day: 'numeric'})),
+                        datasets: [{
+                            label: 'Attendance Progress %',
+                            data: progressData,
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            tension: 0.2,
+                            fill: true,
+                        }]
+                    },
+                    options: getChartOptions()
+                });
+                
+                // History Table
+                const historyBody = document.getElementById('class-history-table-body');
+                historyBody.innerHTML = uniqueLectureDates.map(date => {
+                    const status = presentDates.has(date);
+                    return `
+                        <tr class="border-b dark:border-slate-700">
+                            <td class="px-4 py-2">${new Date(date).toLocaleDateString()}</td>
+                            <td class="px-4 py-2">
+                                <span class="px-2 py-1 text-xs font-medium rounded-full ${status ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'}">
+                                    ${status ? 'Present' : 'Absent'}
+                                </span>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+
+                currentCalendarDate = new Date(); // Reset to current month
+                generateCalendar(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth());
+            }
+
+            document.getElementById('student-classes-container').addEventListener('click', (e) => {
+                 const exitBtn = e.target.closest('.exit-class-btn');
+                 const classCardContent = e.target.closest('.class-card-main-content');
+                
+                if (exitBtn) {
+                    e.stopPropagation();
+                    const cardData = exitBtn.parentElement.dataset;
+                    const { enrollmentId, classId, teacherId, studentId } = cardData;
+                    
+                    const modal = document.getElementById('exit-class-modal');
+                    modal.classList.remove('hidden');
+
+                    const confirmBtn = document.getElementById('confirm-exit-btn');
+                    
+                    const newConfirmBtn = confirmBtn.cloneNode(true);
+                    confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+
+                    newConfirmBtn.onclick = async () => {
+                         try {
+                            const studentRef = doc(db, 'artifacts', appId, 'users', teacherId, 'classes', classId, 'students', studentId);
+                            await updateDoc(studentRef, { deleted: true });
+
+                            const enrollmentRef = doc(db, 'artifacts', appId, 'public', 'data', 'studentEnrollments', enrollmentId);
+                            await deleteDoc(enrollmentRef);
+                            
+                            modal.classList.add('hidden');
+                        } catch (error) {
+                            console.error("Error exiting class:", error);
+                        }
+                    };
+                } else if (classCardContent) {
+                    openClassDetailsModal(classCardContent.parentElement.dataset);
+                }
+            });
+
+
+            function generateCalendar(year, month) {
+                const grid = document.getElementById('calendar-grid');
+                grid.innerHTML = ''; // Clear previous calendar
+
+                document.getElementById('calendar-month-year').textContent = new Date(year, month).toLocaleDateString('en-us', {
+                    month: 'long', year: 'numeric'
+                });
+
+                const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                daysOfWeek.forEach(day => {
+                    const dayEl = document.createElement('div');
+                    dayEl.textContent = day;
+                    dayEl.className = 'calendar-header';
+                    grid.appendChild(dayEl);
+                });
+
+                const firstDayOfMonth = new Date(year, month, 1).getDay();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const today = new Date();
+
+                for (let i = 0; i < firstDayOfMonth; i++) {
+                    grid.appendChild(document.createElement('div'));
+                }
+
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const dayEl = document.createElement('div');
+                    dayEl.textContent = day;
+                    dayEl.className = 'calendar-day';
+                    
+                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    
+                    if (currentClassAttendanceData.present.includes(dateStr)) {
+                        dayEl.classList.add('day-present');
+                    } else if (currentClassAttendanceData.absent.includes(dateStr)) {
+                        dayEl.classList.add('day-absent');
+                    }
+
+                    if (day === today.getDate() && month === today.getMonth() && year === today.getFullYear()) {
+                        dayEl.classList.add('day-today');
+                    }
+                    
+                    grid.appendChild(dayEl);
+                }
+            }
+
+            document.getElementById('prev-month-btn').addEventListener('click', () => {
+                currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1);
+                generateCalendar(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth());
+            });
+
+            document.getElementById('next-month-btn').addEventListener('click', () => {
+                currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1);
+                generateCalendar(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth());
+            });
+            
+            // --- NOTIFICATION SYSTEM ---
+            const notificationBtn = document.getElementById('notification-btn');
+            const notificationPanel = document.getElementById('notification-panel');
+            const notificationDot = document.getElementById('notification-dot');
+            const notificationList = document.getElementById('notification-list');
+            let unreadNotifs = [];
+
+            function setupNotificationListener() {
+                if (!userId) return;
+                const notificationsRef = collection(db, 'artifacts', appId, 'users', userId, 'notifications');
+                const q = query(notificationsRef, orderBy('createdAt', 'desc'));
+                
+                const unsub = onSnapshot(q, (snap) => {
+                    const notifs = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
+                    
+                    if (notifs.length === 0) {
+                        notificationList.innerHTML = `<p class="text-slate-500 dark:text-slate-400 text-center text-sm">No new notifications.</p>`;
+                    } else {
+                        notificationList.innerHTML = notifs.map(n => {
+                            const time = n.createdAt?.toDate().toLocaleString() || '';
+                            return `
+                                <div class="p-2 rounded-lg ${!n.read ? 'bg-blue-50 dark:bg-blue-900/50' : ''}">
+                                    <p class="text-sm">${n.message}</p>
+                                    <p class="text-xs text-slate-400 mt-1">${time}</p>
+                                </div>
+                            `;
+                        }).join('');
+                    }
+
+                    unreadNotifs = notifs.filter(n => !n.read);
+                    notificationDot.classList.toggle('hidden', unreadNotifs.length === 0);
+                });
+                unsubscribeListeners.push(unsub);
+            }
+            
+            notificationBtn.addEventListener('click', () => {
+                notificationPanel.classList.toggle('hidden');
+                if (!notificationPanel.classList.contains('hidden') && unreadNotifs.length > 0) {
+                    const batch = writeBatch(db);
+                    unreadNotifs.forEach(notif => {
+                        const notifRef = doc(db, 'artifacts', appId, 'users', userId, 'notifications', notif.id);
+                        batch.update(notifRef, { read: true });
+                    });
+                    batch.commit();
+                }
+            });
+
+
+            // --- MOBILE SIDEBAR ---
+            const sidebar = document.getElementById('sidebar');
+            const sidebarToggle = document.getElementById('sidebar-toggle');
+            sidebarToggle.addEventListener('click', () => sidebar.classList.toggle('-translate-x-full'));
+            document.addEventListener('click', (e) => { if (!sidebar.contains(e.target) && !sidebarToggle.contains(e.target) && window.innerWidth < 640) sidebar.classList.add('-translate-x-full'); });
+
+            // Initial load
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>
+

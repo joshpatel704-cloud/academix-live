@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classroom Attendance System</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- QR Code Generation Library -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    
+    <!-- QR Code Scanning Library -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .view { display: none; }
+        .view.active { display: block; }
+        .modal-backdrop { background-color: rgba(0,0,0,0.5); }
+        .modal { transition: opacity 0.3s ease, transform 0.3s ease; }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <!-- LOGIN PAGE -->
+    <div id="login-page" class="flex items-center justify-center min-h-screen">
+        <div class="w-full max-w-md p-8 space-y-6 bg-white rounded-2xl shadow-lg">
+            <!-- Login View -->
+            <div id="login-view" class="hidden text-center">
+                <i data-lucide="clipboard-check" class="mx-auto h-12 w-12 text-blue-600"></i>
+                <h2 class="mt-4 text-3xl font-bold text-slate-900">Classroom Attendance</h2>
+                <p class="mt-2 text-sm text-slate-600">Welcome back, teacher! Please sign in.</p>
+                
+                <form id="login-form" class="mt-6 space-y-4 text-left">
+                    <div>
+                        <label for="login-email" class="text-sm font-medium">Email</label>
+                        <input id="login-email" type="email" required class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="you@example.com">
+                    </div>
+                    <div>
+                        <label for="login-password" class="text-sm font-medium">Password</label>
+                        <input id="login-password" type="password" required class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="••••••••">
+                    </div>
+                     <p id="login-error" class="text-red-500 text-sm text-center hidden"></p>
+                    <button type="submit" class="w-full py-3 px-4 text-sm font-semibold rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 transition-all">
+                        Sign In
+                    </button>
+                </form>
+
+                <div class="relative my-4">
+                    <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-300"></div></div>
+                    <div class="relative flex justify-center text-sm"><span class="px-2 bg-white text-slate-500">Or continue with</span></div>
+                </div>
+
+                <button id="google-signin-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-all">
+                    <svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C39.99,35.533,44,30.169,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
+                    Sign In with Google
+                </button>
+                
+                <p class="mt-4 text-sm text-center">
+                    <a href="#" id="show-signup-link" class="font-medium text-blue-600 hover:underline">Don't have an account? Sign up</a>
+                </p>
+            </div>
+            
+            <div id="signup-view" class="hidden text-center">
+                 <i data-lucide="user-plus" class="mx-auto h-12 w-12 text-blue-600"></i>
+                <h2 class="mt-4 text-3xl font-bold text-slate-900">Create Teacher Account</h2>
+                <p class="mt-2 text-sm text-slate-600">Get started with a new account.</p>
+
+                <form id="signup-form" class="mt-6 space-y-4 text-left">
+                    <div>
+                        <label for="signup-name" class="text-sm font-medium">Full Name</label>
+                        <input id="signup-name" type="text" required class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="John Doe">
+                    </div>
+                    <div>
+                        <label for="signup-email" class="text-sm font-medium">Email</label>
+                        <input id="signup-email" type="email" required class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="you@example.com">
+                    </div>
+                    <div>
+                        <label for="signup-password" class="text-sm font-medium">Password</label>
+                        <input id="signup-password" type="password" required class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="••••••••">
+                    </div>
+                    <p id="signup-error" class="text-red-500 text-sm text-center hidden"></p>
+                    <button type="submit" class="w-full py-3 px-4 text-sm font-semibold rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 transition-all">
+                        Create Account
+                    </button>
+                </form>
+
+                 <p class="mt-4 text-sm text-center">
+                    <a href="#" id="show-login-link" class="font-medium text-blue-600 hover:underline">Already have an account? Sign in</a>
+                </p>
+            </div>
+            
+            <div id="loading-content" class="text-center">
+                 <div class="loader mx-auto"></div>
+                 <p class="mt-4 text-slate-600">Connecting to server...</p>
+                 <p id="global-error" class="text-red-500 text-sm text-center hidden mt-2"></p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- MAIN APPLICATION -->
+    <div id="app" class="hidden">
+        <header class="bg-white shadow-sm sticky top-0 z-10">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between h-16">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="clipboard-check" class="h-8 w-8 text-blue-600"></i>
+                        <h1 class="text-xl font-bold text-slate-900">Classroom Attendance</h1>
+                    </div>
+                     <div class="flex items-center gap-4">
+                        <nav id="main-nav" class="hidden md:flex items-center space-x-2">
+                            <!-- Navigation buttons will be injected here by JS -->
+                        </nav>
+                         <button id="logout-btn" class="p-2 rounded-md hover:bg-slate-100" title="Logout">
+                            <i data-lucide="log-out" class="h-5 w-5 text-slate-600"></i>
+                         </button>
+                        <button id="mobile-menu-button" class="md:hidden p-2 rounded-md hover:bg-slate-100">
+                            <i data-lucide="menu" class="h-6 w-6"></i>
+                        </button>
+                     </div>
+                </div>
+                <div id="mobile-menu" class="hidden md:hidden pb-3">
+                    <div class="flex flex-col space-y-1">
+                         <!-- Mobile navigation buttons will be injected here -->
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div id="view-dashboard" class="view">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-3xl font-bold tracking-tight text-slate-900">Teacher Dashboard</h2>
+                    <p id="user-display" class="text-sm text-slate-500"></p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="dashboard-buttons"></div>
+                <div class="mt-8 bg-white p-6 rounded-lg shadow-sm">
+                    <h3 class="text-lg font-semibold mb-4">Your Classes</h3>
+                    <div id="class-list-dashboard" class="space-y-3"></div>
+                </div>
+            </div>
+
+            <div id="view-create-class" class="view">
+                 <h2 class="text-3xl font-bold tracking-tight text-slate-900 mb-6">Create a New Classroom</h2>
+                <div class="bg-white p-8 rounded-lg shadow-sm max-w-lg mx-auto">
+                    <form id="create-class-form" class="space-y-4">
+                        <div>
+                            <label for="class-name" class="block text-sm font-medium text-slate-700">Class/Grade Name</label>
+                            <input type="text" id="class-name" required class="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., Grade 10 - Section A">
+                        </div>
+                        <div>
+                            <label for="class-subject" class="block text-sm font-medium text-slate-700">Subject</label>
+                            <input type="text" id="class-subject" class="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., Mathematics">
+                        </div>
+                        <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Create Class</button>
+                    </form>
+                </div>
+            </div>
+
+            <div id="view-add-students" class="view">
+                <h2 class="text-3xl font-bold tracking-tight text-slate-900 mb-6">Add Students</h2>
+                <div class="bg-white p-8 rounded-lg shadow-sm max-w-2xl mx-auto">
+                    <div class="mb-4">
+                        <label for="class-select-students" class="block text-sm font-medium text-slate-700">Select Class</label>
+                        <select id="class-select-students" class="mt-1 block w-full pl-3 pr-10 py-2 border-slate-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"></select>
+                    </div>
+                    <form id="add-student-form" class="space-y-4">
+                        <div>
+                            <label for="student-name" class="block text-sm font-medium text-slate-700">Student Full Name</label>
+                            <input type="text" id="student-name" required class="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm" placeholder="e.g., John Doe">
+                        </div>
+                        <div>
+                            <label for="roll-number" class="block text-sm font-medium text-slate-700">Roll Number</label>
+                            <input type="text" id="roll-number" required class="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm" placeholder="e.g., 25">
+                        </div>
+                        <button type="submit" class="w-full flex justify-center py-2 px-4 rounded-md shadow-sm font-medium text-white bg-blue-600 hover:bg-blue-700">Add Student</button>
+                    </form>
+                     <div class="mt-8">
+                        <h3 class="text-lg font-semibold mb-2">Students in Selected Class</h3>
+                        <div id="student-list-in-class" class="border rounded-md max-h-60 overflow-y-auto"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="view-take-attendance" class="view">
+                 <h2 class="text-3xl font-bold tracking-tight text-slate-900 mb-6">Take Attendance</h2>
+                 <div class="bg-white p-8 rounded-lg shadow-sm">
+                    <div class="mb-6">
+                        <label for="class-select-attendance" class="block text-sm font-medium text-slate-700">Select Class</label>
+                        <select id="class-select-attendance" class="mt-1 block w-full pl-3 pr-10 py-2 border-slate-300 rounded-md"></select>
+                    </div>
+                    <div id="attendance-content" class="hidden grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">Class QR Code for Today</h3>
+                             <p class="text-sm text-slate-500 mb-4">Students can scan this code to mark their attendance for <span id="attendance-date" class="font-semibold"></span>.</p>
+                            <div id="attendance-qr-code" class="flex justify-center items-center p-4 bg-white rounded-lg border w-fit mx-auto"></div>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">Live Attendance</h3>
+                            <div class="flex justify-between items-baseline mb-4">
+                               <p class="text-sm text-slate-500">Present: <span id="present-count" class="font-bold text-slate-800">0</span>/<span id="total-students-attendance" class="font-bold text-slate-800">0</span></p>
+                               <button id="student-scan-button" class="text-sm font-medium text-blue-600 hover:underline">Simulate Student Scan</button>
+                            </div>
+                            <div id="present-students-list" class="border rounded-md max-h-80 overflow-y-auto"></div>
+                        </div>
+                    </div>
+                 </div>
+            </div>
+
+            <div id="view-view-reports" class="view">
+                 <h2 class="text-3xl font-bold tracking-tight text-slate-900 mb-6">Attendance Reports</h2>
+                 <div class="bg-white p-8 rounded-lg shadow-sm">
+                    <div class="mb-6">
+                        <label for="class-select-reports" class="block text-sm font-medium text-slate-700">Select Class</label>
+                        <select id="class-select-reports" class="mt-1 block w-full pl-3 pr-10 py-2 border-slate-300 rounded-md"></select>
+                    </div>
+                    <div id="report-content" class="hidden">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 text-center">
+                            <div class="bg-slate-100 p-4 rounded-lg"><p class="text-sm text-slate-500">Total Strength</p><p id="report-total-students" class="text-2xl font-bold"></p></div>
+                            <div class="bg-green-100 p-4 rounded-lg"><p class="text-sm text-green-700">Total Classes Held</p><p id="report-total-classes" class="text-2xl font-bold"></p></div>
+                            <div class="bg-blue-100 p-4 rounded-lg"><p class="text-sm text-blue-700">Avg. Attendance</p><p id="report-avg-attendance" class="text-2xl font-bold"></p></div>
+                        </div>
+                        <h3 class="text-lg font-semibold mb-4">Student-wise Attendance</h3>
+                        <div class="overflow-x-auto"><table class="min-w-full divide-y divide-slate-200"><thead class="bg-slate-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Roll No.</th><th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Student Name</th><th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Present Days</th><th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Attendance %</th></tr></thead><tbody id="report-table-body" class="bg-white divide-y divide-slate-200"></tbody></table></div>
+                    </div>
+                 </div>
+            </div>
+        </main>
+    </div>
+    
+    <div id="toast" class="fixed top-5 right-5 bg-green-500 text-white py-2 px-5 rounded-lg shadow-lg opacity-0 translate-y-10 transition-all duration-300"><p id="toast-message"></p></div>
+    
+    <div id="scan-modal" class="fixed inset-0 z-20 items-center justify-center hidden"><div class="modal-backdrop fixed inset-0"></div><div class="modal bg-white rounded-lg shadow-xl m-4 sm:max-w-lg sm:w-full relative opacity-0 transform -translate-y-10"><div class="p-6"><h3 class="text-lg font-medium">Simulate Student Scan</h3><div class="mt-4"><p class="text-sm text-slate-600 mb-4">Select a student to mark them as present.</p><label for="student-select-scan" class="block text-sm font-medium text-slate-700">Select Student</label><select id="student-select-scan" class="mt-1 block w-full pl-3 pr-10 py-2 border-slate-300 rounded-md"></select><div id="qr-reader-container" class="mt-4 border rounded-lg overflow-hidden hidden"><div id="qr-reader" class="w-full"></div><div id="scan-feedback" class="p-2 text-center text-sm"></div></div></div><div class="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense"><button id="mark-present-manual-btn" type="button" class="w-full inline-flex justify-center rounded-md border shadow-sm px-4 py-2 bg-blue-600 font-medium text-white hover:bg-blue-700 sm:col-start-2 sm:text-sm">Mark Present</button><button id="start-camera-scan-btn" type="button" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:col-start-1 sm:text-sm">Scan with Camera</button></div><button id="close-scan-modal" class="absolute top-2 right-2 p-1 rounded-full hover:bg-slate-100"><i data-lucide="x" class="h-5 w-5"></i></button></div></div></div>
+    
+    <div id="loader-modal" class="fixed inset-0 z-30 items-center justify-center hidden"><div class="modal-backdrop fixed inset-0"></div><div class="flex flex-col items-center"><div class="loader"></div><p id="loader-message" class="text-white mt-4"></p></div></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, addDoc, getDoc, getDocs, onSnapshot, query, where, Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfigFromUser = {
+            apiKey: "AIzaSyCaOBUE3k2dD7GmrHupYL7hdiBzfijFnHQ",
+            authDomain: "eduattend-e59d5.firebaseapp.com",
+            projectId: "eduattend-e59d5",
+            storageBucket: "eduattend-e59d5.appspot.com",
+            messagingSenderId: "797108114132",
+            appId: "1:797108114132:web:df2194a345088271f32141",
+            measurementId: "G-EJ7HB64EXB"
+        };
+        
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : firebaseConfigFromUser;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        let db;
+        let auth;
+
+        try {
+            const fbApp = initializeApp(firebaseConfig);
+            auth = getAuth(fbApp);
+            db = getFirestore(fbApp);
+            console.log("Firebase Initialized Successfully");
+        } catch (e) {
+            console.error("Firebase initialization failed:", e);
+            document.body.innerHTML = `<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert"><strong class="font-bold">Fatal Error:</strong><span class="block sm:inline"> Could not connect to the database. Please check your Firebase configuration in the code.</span></div>`;
+        }
+
+        let teacherId = null;
+        let classes = [];
+        let students = {};
+        
+        const views = document.querySelectorAll('.view');
+        const mainNav = document.getElementById('main-nav');
+        const mobileNav = document.querySelector('#mobile-menu div');
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const toastEl = document.getElementById('toast');
+        const toastMessage = document.getElementById('toast-message');
+        const loaderModal = document.getElementById('loader-modal');
+        const loaderMessage = document.getElementById('loader-message');
+
+        const setLoginUiState = (state, errorMsg = null) => {
+            document.getElementById('login-view').classList.toggle('hidden', state !== 'login');
+            document.getElementById('signup-view').classList.toggle('hidden', state !== 'signup');
+            document.getElementById('loading-content').classList.toggle('hidden', state !== 'loading');
+            const globalError = document.getElementById('global-error');
+            if(state === 'loading' && errorMsg) {
+                globalError.textContent = errorMsg;
+                globalError.classList.remove('hidden');
+            } else {
+                globalError.classList.add('hidden');
+            }
+        };
+
+        const showView = (viewId) => {
+            views.forEach(v => v.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+            updateNav(viewId);
+            mobileMenuButton.querySelector('i').setAttribute('data-lucide', 'menu');
+            document.getElementById('mobile-menu').classList.add('hidden');
+        };
+
+        const showToast = (message, isError = false) => {
+            toastMessage.textContent = message;
+            toastEl.classList.remove('bg-green-500', 'bg-red-500');
+            toastEl.classList.add(isError ? 'bg-red-500' : 'bg-green-500');
+            toastEl.classList.remove('opacity-0', 'translate-y-10');
+            setTimeout(() => { toastEl.classList.add('opacity-0', 'translate-y-10'); }, 3000);
+        };
+        
+        const showLoader = (message = 'Processing...') => {
+            loaderMessage.textContent = message;
+            loaderModal.style.display = 'flex';
+        };
+
+        const hideLoader = () => {
+            loaderModal.style.display = 'none';
+        };
+
+        const navButtons = [
+            { id: 'view-dashboard', text: 'Dashboard', icon: 'layout-dashboard' },
+            { id: 'view-create-class', text: 'Create Class', icon: 'plus-square' },
+            { id: 'view-add-students', text: 'Add Students', icon: 'user-plus' },
+            { id: 'view-take-attendance', text: 'Take Attendance', icon: 'qr-code' },
+            { id: 'view-view-reports', text: 'View Reports', icon: 'bar-chart-3' }
+        ];
+
+        const createNavButton = (btnInfo, isMobile) => {
+            const baseClasses = `nav-button font-medium text-sm rounded-md transition-colors duration-200`;
+            const mobileClasses = `w-full text-left px-3 py-2`;
+            const desktopClasses = `px-3 py-2`;
+            const button = document.createElement('a');
+            button.href = '#';
+            button.dataset.view = btnInfo.id;
+            button.className = `${baseClasses} ${isMobile ? mobileClasses : desktopClasses}`;
+            button.innerHTML = `<i data-lucide="${btnInfo.icon}" class="inline-block h-4 w-4 mr-2"></i>${btnInfo.text}`;
+            return button;
+        }
+
+        const setupNavigation = () => {
+            mainNav.innerHTML = '';
+            mobileNav.innerHTML = '';
+            navButtons.forEach(btnInfo => {
+                mainNav.appendChild(createNavButton(btnInfo, false));
+                mobileNav.appendChild(createNavButton(btnInfo, true));
+            });
+            updateNav('view-dashboard');
+            lucide.createIcons();
+        };
+
+        const updateNav = (activeViewId) => {
+            document.querySelectorAll('.nav-button').forEach(btn => {
+                const isActive = btn.dataset.view === activeViewId;
+                btn.classList.toggle('bg-slate-100', isActive);
+                btn.classList.toggle('text-blue-600', isActive);
+                btn.classList.toggle('text-slate-600', !isActive);
+                btn.classList.toggle('hover:bg-slate-100', !isActive);
+            });
+        };
+
+        const getTodayDateString = () => new Date().toISOString().split('T')[0];
+
+        const renderClasses = () => {
+            const dashboardList = document.getElementById('class-list-dashboard');
+            if (classes.length === 0) {
+                dashboardList.innerHTML = `<p class="text-slate-500">No classes created. Click 'Create Class' to start.</p>`;
+            } else {
+                 dashboardList.innerHTML = classes.map(c => `<div class="p-4 bg-slate-50 rounded-md flex justify-between items-center"><div><p class="font-semibold">${c.name}</p><p class="text-sm text-slate-500">${c.subject || 'No subject'}</p></div></div>`).join('');
+            }
+            const optionsHtml = classes.map(c => `<option value="${c.id}">${c.name}</option>").join('');
+            document.getElementById('class-select-students').innerHTML = `<option value="">Select a class...</option>${optionsHtml}`;
+            document.getElementById('class-select-attendance').innerHTML = `<option value="">Select a class...</option>${optionsHtml}`;
+            document.getElementById('class-select-reports').innerHTML = `<option value="">Select a class...</option>${optionsHtml}`;
+        };
+
+        const renderStudentsForClass = (classId) => {
+            const container = document.getElementById('student-list-in-class');
+            const classStudents = students[classId] || [];
+            if(classStudents.length === 0) {
+                container.innerHTML = `<p class="p-4 text-slate-500">No students added yet.</p>`;
+            } else {
+                 container.innerHTML = `<ul class="divide-y divide-slate-200">${classStudents.map(s => `<li class="p-3 flex justify-between items-center"><div><p class="font-medium text-sm">${s.name}</p></div><p class="text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded-full">Roll: ${s.rollNumber}</p></li>`).join('')}</ul>`;
+            }
+        };
+
+        const fetchAndListenClasses = () => {
+            const classRef = collection(db, 'artifacts', appId, 'users', teacherId, 'classes');
+            onSnapshot(classRef, (snapshot) => {
+                classes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderClasses();
+            });
+        };
+
+        const fetchAndListenStudents = (classId) => {
+            if (!classId) return;
+            const studentRef = collection(db, 'artifacts', appId, 'users', teacherId, 'classes', classId, 'students');
+            onSnapshot(studentRef, (snapshot) => {
+                students[classId] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderStudentsForClass(classId);
+            });
+        };
+
+        const setupApp = (user) => {
+            teacherId = user.uid;
+            document.getElementById('login-page').classList.add('hidden');
+            document.getElementById('app').classList.remove('hidden');
+            document.getElementById('user-display').textContent = `Logged in as ${user.displayName || user.email}`;
+            setupNavigation();
+            showView('view-dashboard');
+            
+            const dashboardCards = [
+                { view: 'view-create-class', text: 'Create Class', icon: 'plus-square', color: 'bg-blue-500' },
+                { view: 'view-add-students', text: 'Add Students', icon: 'user-plus', color: 'bg-indigo-500' },
+                { view: 'view-take-attendance', text: 'Take Attendance', icon: 'qr-code', color: 'bg-emerald-500' },
+                { view: 'view-view-reports', text: 'View Reports', icon: 'bar-chart-3', color: 'bg-amber-500' }
+            ];
+            document.getElementById('dashboard-buttons').innerHTML = dashboardCards.map(card => `<a href="#" data-view="${card.view}" class="nav-button flex flex-col items-center justify-center p-6 ${card.color} text-white rounded-lg shadow-lg hover:opacity-90 transition-opacity"><i data-lucide="${card.icon}" class="h-10 w-10 mb-2"></i><p class="font-semibold">${card.text}</p></a>`).join('');
+
+            document.getElementById('dashboard-buttons').addEventListener('click', e => {
+                const navBtn = e.target.closest('.nav-button');
+                if(navBtn) { e.preventDefault(); showView(navBtn.dataset.view); }
+            });
+
+            fetchAndListenClasses();
+            lucide.createIcons();
+        };
+
+        // --- Event Listeners ---
+        document.getElementById('create-class-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const className = form['class-name'].value;
+            const subject = form['class-subject'].value;
+            showLoader('Creating class...');
+            try {
+                const classRef = collection(db, 'artifacts', appId, 'users', teacherId, 'classes');
+                await addDoc(classRef, { name: className, subject, createdAt: Timestamp.now() });
+                showToast(`Class "${className}" created!`);
+                form.reset();
+                showView('view-dashboard');
+            } catch (err) { showToast("Failed to create class.", true); }
+            finally { hideLoader(); }
+        });
+
+        document.getElementById('add-student-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const studentName = form['student-name'].value;
+            const rollNumber = form['roll-number'].value;
+            const selectedClassId = document.getElementById('class-select-students').value;
+            if(!selectedClassId) { showToast("Please select a class.", true); return; }
+            showLoader('Adding student...');
+            try {
+                const studentRef = collection(db, 'artifacts', appId, 'users', teacherId, 'classes', selectedClassId, 'students');
+                await addDoc(studentRef, { name: studentName, rollNumber, createdAt: Timestamp.now() });
+                showToast(`Student "${studentName}" added.`);
+                form.reset();
+            } catch(err) { showToast("Failed to add student.", true); }
+            finally { hideLoader(); }
+        });
+        
+        document.getElementById('class-select-students').addEventListener('change', (e) => fetchAndListenStudents(e.target.value));
+
+        // --- Main App Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!db) return;
+            
+            lucide.createIcons();
+            
+            onAuthStateChanged(auth, async (user) => {
+                try {
+                    if (user) {
+                        await setDoc(doc(db, 'artifacts', appId, 'users', user.uid), {
+                            name: user.displayName, email: user.email, lastLogin: Timestamp.now()
+                        }, { merge: true });
+                        setupApp(user);
+                    } else {
+                        teacherId = null;
+                        document.getElementById('login-page').classList.remove('hidden');
+                        document.getElementById('app').classList.add('hidden');
+                        setLoginUiState('login');
+                    }
+                } catch (error) {
+                    console.error("Auth state change/DB error:", error);
+                    setLoginUiState('loading', 'Database connection error. Check Firestore rules.');
+                }
+            });
+
+            document.getElementById('login-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const form = e.target;
+                const email = form['login-email'].value;
+                const password = form['login-password'].value;
+                const errorEl = document.getElementById('login-error');
+                errorEl.classList.add('hidden');
+                setLoginUiState('loading');
+                try { await signInWithEmailAndPassword(auth, email, password); }
+                catch (error) {
+                    errorEl.textContent = error.code.replace('auth/', '').replace(/-/g, ' ');
+                    errorEl.classList.remove('hidden');
+                    setLoginUiState('login');
+                }
+            });
+
+            document.getElementById('signup-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const form = e.target;
+                const name = form['signup-name'].value;
+                const email = form['signup-email'].value;
+                const password = form['signup-password'].value;
+                const errorEl = document.getElementById('signup-error');
+                errorEl.classList.add('hidden');
+                setLoginUiState('loading');
+                try {
+                    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                    await updateProfile(userCredential.user, { displayName: name });
+                } catch (error) {
+                    errorEl.textContent = error.code.replace('auth/', '').replace(/-/g, ' ');
+                    errorEl.classList.remove('hidden');
+                    setLoginUiState('signup');
+                }
+            });
+
+            document.getElementById('google-signin-btn').addEventListener('click', async () => {
+                setLoginUiState('loading');
+                try { await signInWithPopup(auth, new GoogleAuthProvider()); }
+                catch (error) { setLoginUiState('login'); console.error(error); }
+            });
+            
+            document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
+            document.getElementById('show-signup-link').addEventListener('click', (e) => { e.preventDefault(); setLoginUiState('signup'); });
+            document.getElementById('show-login-link').addEventListener('click', (e) => { e.preventDefault(); setLoginUiState('login'); });
+            
+            mainNav.addEventListener('click', e => { const btn = e.target.closest('.nav-button'); if(btn) { e.preventDefault(); showView(btn.dataset.view); } });
+            mobileNav.addEventListener('click', e => { const btn = e.target.closest('.nav-button'); if(btn) { e.preventDefault(); showView(btn.dataset.view); } });
+            mobileMenuButton.addEventListener('click', () => {
+                const icon = mobileMenuButton.querySelector('i');
+                const isHidden = document.getElementById('mobile-menu').classList.toggle('hidden');
+                icon.setAttribute('data-lucide', isHidden ? 'menu' : 'x');
+                lucide.createIcons();
+            });
+        });
+
+    </script>
+</body>
+</html>
+
