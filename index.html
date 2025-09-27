@@ -162,6 +162,24 @@
         .day-today {
             border: 2px solid #3b82f6; /* blue-500 */
         }
+        .copied-feedback {
+            position: absolute;
+            bottom: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #10b981;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.3s, bottom 0.3s;
+        }
+        .copied-feedback.show {
+            opacity: 1;
+            bottom: -20px;
+        }
     </style>
 </head>
 <body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200 transition-colors duration-300">
@@ -255,6 +273,23 @@
                         <i data-lucide="user"></i> I am a Student
                     </button>
                 </div>
+            </div>
+
+            <!-- Teacher Join Institute View -->
+            <div id="teacher-join-institute-view" class="hidden text-center">
+                <i data-lucide="university" class="mx-auto h-12 w-12 text-indigo-500"></i>
+                <h2 class="mt-4 text-3xl font-bold text-slate-900 dark:text-white">Join an Institute</h2>
+                <p class="mt-2 text-sm text-slate-600 dark:text-slate-400">Please enter the join code provided by your institute's admin.</p>
+                <form id="teacher-join-form" class="mt-6 space-y-4 text-left">
+                    <div>
+                        <label for="join-code" class="text-sm font-medium">Institute Join Code</label>
+                        <input id="join-code" type="text" required class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., A4D9F1">
+                    </div>
+                    <p id="join-code-error" class="text-red-500 text-sm text-center hidden"></p>
+                    <button type="submit" class="w-full py-3 px-4 text-sm font-semibold rounded-lg border border-transparent bg-indigo-600 text-white hover:bg-indigo-700 transition-all flex items-center justify-center">
+                        Join Institute
+                    </button>
+                </form>
             </div>
             
             <div id="loading-content" class="text-center">
@@ -515,6 +550,72 @@
                     </div>
                 </div>
 
+                <!-- FACULTY PROFILE VIEW (Teacher) -->
+                <div id="view-faculty-profile" class="hidden">
+                    <h1 class="text-3xl font-bold mb-6">Faculty Profile</h1>
+                    <div class="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md">
+                        <form id="faculty-profile-form">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div class="md:col-span-1 flex flex-col items-center">
+                                    <label for="faculty-photo-input" class="profile-photo-upload">
+                                        <img id="faculty-photo-preview" src="https://placehold.co/128x128/e2e8f0/64748b?text=Upload" alt="Profile Photo">
+                                        <div class="overlay">
+                                           <i data-lucide="camera" class="text-white"></i>
+                                        </div>
+                                    </label>
+                                    <input type="file" id="faculty-photo-input" class="hidden" accept="image/png, image/jpeg">
+                                    <p class="text-xs text-slate-500 mt-2">Max 200KB</p>
+                                </div>
+                                <div class="md:col-span-2 space-y-4">
+                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="faculty-name" class="text-sm font-medium">Full Name</label>
+                                            <input id="faculty-name" type="text" disabled class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-200 dark:bg-slate-700 cursor-not-allowed">
+                                        </div>
+                                        <div>
+                                            <label for="faculty-email" class="text-sm font-medium">Email</label>
+                                            <input id="faculty-email" type="email" disabled class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-200 dark:bg-slate-700 cursor-not-allowed">
+                                        </div>
+                                    </div>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="faculty-mobile" class="text-sm font-medium">Mobile Number</label>
+                                            <input id="faculty-mobile" type="tel" class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        </div>
+                                        <div>
+                                            <label for="faculty-gender" class="text-sm font-medium">Gender</label>
+                                            <select id="faculty-gender" class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                <option>Male</option>
+                                                <option>Female</option>
+                                                <option>Other</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                     <div>
+                                        <label for="faculty-degree" class="text-sm font-medium">Academic Degree</label>
+                                        <input id="faculty-degree" type="text" class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Ph.D. in Physics">
+                                    </div>
+                                    <div>
+                                        <label for="faculty-certifications" class="text-sm font-medium">Certifications (Optional)</label>
+                                        <textarea id="faculty-certifications" rows="3" class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Google Certified Educator"></textarea>
+                                    </div>
+                                    <div>
+                                        <label for="faculty-skills" class="text-sm font-medium">Special Skills</label>
+                                        <textarea id="faculty-skills" rows="3" class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Public Speaking, Python, Curriculum Design"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                            <p id="faculty-profile-error" class="text-red-500 text-sm text-center hidden mt-4"></p>
+                            <p id="faculty-profile-success" class="text-emerald-500 text-sm text-center hidden mt-4"></p>
+                            <div class="mt-6 flex justify-end">
+                                <button type="submit" class="px-6 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 flex items-center justify-center">
+                                    Save Changes
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
 
                 <!-- ATTENDANCE VIEW (Global) -->
                 <div id="view-attendance" class="hidden">
@@ -528,6 +629,9 @@
                                 <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Scan the class QR code to mark your attendance.</p>
                                 <button id="start-scan-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 transition-all">
                                     <i data-lucide="qr-code"></i> Scan Attendance QR Code
+                                </button>
+                                <button id="demo-mark-attendance-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold rounded-lg border border-dashed border-emerald-500 text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/50 transition-all mt-2">
+                                    <i data-lucide="test-tube-2"></i> Mark Me Present (Demo)
                                 </button>
                                 <div id="qr-reader" class="mt-4 w-full"></div>
                                 <div id="scan-result" class="mt-4 text-center font-medium"></div>
@@ -627,10 +731,39 @@
 
                 <!-- STUDENTS VIEW -->
                 <div id="view-students" class="hidden">
-                    <h1 class="text-3xl font-bold mb-6">Students</h1>
+                    <div class="flex justify-between items-center mb-6">
+                        <h1 class="text-3xl font-bold">Manage Students</h1>
+                    </div>
                      <div class="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md">
-                        <!-- Table here -->
-                        <p>Student management table would go here for Admin.</p>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left">
+                                <thead class="text-xs text-slate-700 uppercase bg-slate-50 dark:bg-slate-700 dark:text-slate-400">
+                                    <tr>
+                                        <th class="px-6 py-3">Student Name</th>
+                                        <th class="px-6 py-3">Email</th>
+                                        <th class="px-6 py-3">Enrollment No.</th>
+                                        <th class="px-6 py-3">Status</th>
+                                        <th class="px-6 py-3">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-students-list">
+                                    <!-- Student rows will be injected here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- INSTITUTE VIEW (Admin) -->
+                <div id="view-institute" class="hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h1 id="institute-view-title" class="text-3xl font-bold">Manage Institutes</h1>
+                        <button id="create-institute-btn" class="flex items-center gap-2 py-2 px-4 text-sm font-semibold rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 transition-all">
+                            <i data-lucide="plus"></i> Create Institute
+                        </button>
+                    </div>
+                    <div id="institutes-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <!-- Institute cards will be loaded here -->
                     </div>
                 </div>
 
@@ -671,6 +804,45 @@
     </div>
     
     <!-- MODALS -->
+
+    <!-- Create Institute Modal -->
+    <div id="create-institute-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-backdrop">
+        <div class="w-full max-w-2xl p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-lg modal-content">
+            <h2 class="text-xl font-bold mb-4">Create New Institute</h2>
+            <form id="create-institute-form">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="md:col-span-1 flex flex-col items-center pt-4">
+                         <label for="institute-logo-input" class="profile-photo-upload cursor-pointer">
+                            <img id="institute-logo-preview" src="https://placehold.co/128x128/e2e8f0/64748b?text=Upload+Logo" alt="Institute Logo">
+                            <div class="overlay"><i data-lucide="camera" class="text-white"></i></div>
+                        </label>
+                        <input type="file" id="institute-logo-input" class="hidden" accept="image/png, image/jpeg">
+                        <p class="text-xs text-slate-500 mt-2">Max 200KB.</p>
+                    </div>
+                    <div class="md:col-span-2 space-y-4">
+                        <div>
+                            <label for="institute-name" class="text-sm font-medium">Institute Name</label>
+                            <input id="institute-name" type="text" required class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="institute-address" class="text-sm font-medium">Address</label>
+                            <textarea id="institute-address" rows="3" required class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                        </div>
+                        <div>
+                            <label for="institute-contact" class="text-sm font-medium">Contact Info (Email/Phone)</label>
+                            <input id="institute-contact" type="text" required class="mt-1 block w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+                </div>
+                <p id="create-institute-error" class="text-red-500 text-sm text-center hidden mt-4"></p>
+                <div class="mt-6 flex justify-end gap-3">
+                    <button type="button" class="modal-close-btn px-4 py-2 text-sm font-medium rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600">Cancel</button>
+                    <button type="submit" class="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 flex items-center justify-center">Create Institute</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div id="post-notice-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-backdrop">
         <div class="w-full max-w-lg p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-lg modal-content">
             <h2 class="text-xl font-bold mb-4">Post New Notice</h2>
@@ -901,55 +1073,84 @@
         import { getAuth, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, addDoc, getDoc, getDocs, onSnapshot, query, where, serverTimestamp, writeBatch, updateDoc, orderBy, deleteDoc, collectionGroup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Provided Firebase configuration
+        // --- Firebase Configuration ---
+        // STEP 1: Paste your Firebase project's configuration object here.
+        // You can find this in your Firebase project settings under "General".
         const firebaseConfigFromUser = {
             apiKey: "AIzaSyCaOBUE3k2dD7GmrHupYL7hdiBzfijFnHQ",
             authDomain: "eduattend-e59d5.firebaseapp.com",
             projectId: "eduattend-e59d5",
-            storageBucket: "eduattend-e59d5.appspot.com",
+            storageBucket: "eduattend-e59d5.firebasestorage.app",
             messagingSenderId: "797108114132",
             appId: "1:797108114132:web:df2194a345088271f32141",
             measurementId: "G-EJ7HB64EXB"
         };
-        
-        // Use environment variables if available, otherwise fallback to user-provided config
+
+        // This logic checks for a securely provided configuration (in a production environment)
+        // and falls back to your user-provided config above for local development.
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : firebaseConfigFromUser;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
         // Initialize Firebase
-        const fbApp = initializeApp(firebaseConfig);
-        const auth = getAuth(fbApp);
-        const db = getFirestore(fbApp);
-        
-        // Global state
-        let userId = null;
-        let currentUserRole = null;
-        let currentClassId = null;
-        let unsubscribeListeners = []; // To store Firestore listeners
-        let charts = {};
-        let searchDebounceTimeout;
+        let fbApp, auth, db;
         
         document.addEventListener('DOMContentLoaded', () => {
+
+            // Check if the configuration is still a placeholder
+            if (firebaseConfig.apiKey.startsWith("PASTE_")) {
+                console.error("Firebase config is not valid. Please paste your project's configuration.");
+                const loadingContent = document.getElementById('loading-content');
+                if(loadingContent) {
+                    loadingContent.innerHTML = '<p class="text-red-500 text-center p-4"><b>Action Required:</b><br>Please provide your Firebase configuration in the HTML file to connect to the server.</p>';
+                }
+                return; // Stop the script if the config is just a placeholder
+            }
+            
+            try {
+                fbApp = initializeApp(firebaseConfig);
+                auth = getAuth(fbApp);
+                db = getFirestore(fbApp);
+            } catch (error) {
+                console.error("Error initializing Firebase:", error);
+                const loadingContent = document.getElementById('loading-content');
+                if(loadingContent) {
+                    loadingContent.innerHTML = `<p class="text-red-500 text-center p-4"><b>Firebase Error:</b><br>${error.message}</p>`;
+                }
+                return;
+            }
+
+            // Global state
+            let userId = null;
+            let currentUserRole = null;
+            let currentClassId = null;
+            let unsubscribeListeners = []; // To store Firestore listeners
+            let charts = {};
+            let searchDebounceTimeout;
+
             const loginPage = document.getElementById('login-page');
             const app = document.getElementById('app');
             const loginView = document.getElementById('login-view');
             const signupView = document.getElementById('signup-view');
             const roleSelectionView = document.getElementById('role-selection-view');
             const loadingContent = document.getElementById('loading-content');
+            const teacherJoinView = document.getElementById('teacher-join-institute-view');
             
             const googleSignInBtn = document.getElementById('google-signin-btn');
             const showSignupLink = document.getElementById('show-signup-link');
             const showLoginLink = document.getElementById('show-login-link');
             const loginForm = document.getElementById('login-form');
             const signupForm = document.getElementById('signup-form');
+            const teacherJoinForm = document.getElementById('teacher-join-form');
             const loginError = document.getElementById('login-error');
             const signupError = document.getElementById('signup-error');
             const globalError = document.getElementById('global-error');
+            const joinCodeError = document.getElementById('join-code-error');
             
             const setLoginUiState = (state, errorMsg = null) => {
                 loginView.classList.toggle('hidden', state !== 'login');
                 signupView.classList.toggle('hidden', state !== 'signup');
                 roleSelectionView.classList.toggle('hidden', state !== 'role');
+                teacherJoinView.classList.toggle('hidden', state !== 'teacher-join');
                 loadingContent.classList.toggle('hidden', state !== 'loading');
 
                 if(state === 'loading' && errorMsg) {
@@ -974,7 +1175,12 @@
 
                         if (userProfileSnap.exists() && userProfileSnap.data().role) {
                             const profile = userProfileSnap.data();
-                            await showApp(profile.role, user);
+                            // For teachers, ensure they have an instituteId before showing the app
+                            if (profile.role === 'teacher' && !profile.instituteId) {
+                                setLoginUiState('teacher-join');
+                            } else {
+                                await showApp(profile.role, user);
+                            }
                         } else {
                             if (!userProfileSnap.exists()) {
                                 await setDoc(userProfileRef, {
@@ -1054,8 +1260,46 @@
                 setLoginUiState('loading');
                 const userProfileRef = doc(db, 'artifacts', appId, 'users', auth.currentUser.uid);
                 await setDoc(userProfileRef, { role: role }, { merge: true });
-                await showApp(role, auth.currentUser);
+
+                if (role === 'teacher') {
+                    setLoginUiState('teacher-join');
+                } else {
+                    await showApp(role, auth.currentUser);
+                }
             };
+
+            teacherJoinForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const joinCode = teacherJoinForm['join-code'].value.trim().toUpperCase();
+                joinCodeError.classList.add('hidden');
+                const submitButton = teacherJoinForm.querySelector('button[type="submit"]');
+                const originalHTML = submitButton.innerHTML;
+                submitButton.disabled = true;
+                submitButton.innerHTML = `<span class="loader-small"></span> Verifying...`;
+                
+                try {
+                    const institutesRef = collection(db, 'artifacts', appId, 'public', 'data', 'institutes');
+                    const q = query(institutesRef, where("joinCode", "==", joinCode));
+                    const snap = await getDocs(q);
+
+                    if (snap.empty) {
+                        throw new Error("Invalid join code. Please check and try again.");
+                    }
+                    
+                    const instituteId = snap.docs[0].id;
+                    const userProfileRef = doc(db, 'artifacts', appId, 'users', auth.currentUser.uid);
+                    await updateDoc(userProfileRef, { instituteId: instituteId });
+
+                    await showApp('teacher', auth.currentUser);
+
+                } catch (error) {
+                    joinCodeError.textContent = error.message;
+                    joinCodeError.classList.remove('hidden');
+                } finally {
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalHTML;
+                }
+            });
 
             const showApp = async (role, user) => {
                 currentUserRole = role;
@@ -1083,7 +1327,6 @@
                     switchView('attendance');
                     setTimeout(() => {
                         const startScanBtn = document.getElementById('start-scan-btn');
-                        // Ensure we are not already scanning
                         if (startScanBtn && !isScanning) {
                            startScanBtn.click();
                         }
@@ -1108,9 +1351,9 @@
 
             // --- UI & NAVIGATION ---
             const navConfig = {
-                admin: [{ id: 'home', icon: 'home', text: 'Home'}, { id: 'clubs', icon: 'users-2', text: 'Clubs'}, { id: 'dashboard', icon: 'layout-dashboard', text: 'Dashboard' }, { id: 'attendance', icon: 'calendar-check-2', text: 'Attendance' }, { id: 'students', icon: 'users', text: 'Students' }, { id: 'teachers', icon: 'contact', text: 'Teachers' }, { id: 'reports', icon: 'file-bar-chart-2', text: 'Reports' }, { id: 'settings', icon: 'settings', text: 'Settings' }],
-                teacher: [{ id: 'home', icon: 'home', text: 'Home'}, { id: 'clubs', icon: 'users-2', text: 'Clubs'}, { id: 'dashboard', icon: 'layout-dashboard', text: 'Dashboard' }, { id: 'classrooms', icon: 'school', text: 'Classrooms' }, { id: 'settings', icon: 'settings', text: 'Settings' }],
-                student: [{ id: 'home', icon: 'home', text: 'Home'}, { id: 'clubs', icon: 'users-2', text: 'Clubs'}, { id: 'dashboard', icon: 'layout-dashboard', text: 'Dashboard' }, { id: 'student-portal', icon: 'user-circle', text: 'Student Portal' }, { id: 'attendance', icon: 'calendar-check-2', text: 'Attendance' }, { id: 'settings', icon: 'settings', text: 'Settings' }]
+                admin: [{ id: 'home', icon: 'home', text: 'Home'}, { id: 'institute', icon: 'university', text: 'Institute' }, { id: 'attendance', icon: 'calendar-check-2', text: 'Attendance' }, { id: 'students', icon: 'users', text: 'Students' }, { id: 'teachers', icon: 'contact', text: 'Teachers' }, { id: 'reports', icon: 'file-bar-chart-2', text: 'Reports' }, { id: 'settings', icon: 'settings', text: 'Settings' }],
+                teacher: [{ id: 'home', icon: 'home', text: 'Home'}, { id: 'faculty-profile', icon: 'user-circle', text: 'Faculty Profile' }, { id: 'classrooms', icon: 'school', text: 'Classrooms' }, { id: 'settings', icon: 'settings', text: 'Settings' }],
+                student: [{ id: 'home', icon: 'home', text: 'Home'}, { id: 'student-portal', icon: 'user-circle', text: 'Student Portal' }, { id: 'attendance', icon: 'calendar-check-2', text: 'Attendance' }, { id: 'settings', icon: 'settings', text: 'Settings' }]
             };
             const setupNav = (role) => {
                 document.querySelector('#sidebar-nav ul').innerHTML = navConfig[role].map((item, index) => `
@@ -1143,6 +1386,9 @@
                 if (viewId === 'attendance') setupAttendanceView();
                 if (viewId === 'classrooms') setupClassroomsView();
                 if (viewId === 'student-portal') setupStudentPortalView();
+                if (viewId === 'students') setupStudentsView();
+                if (viewId === 'institute') setupInstituteView();
+                if (viewId === 'faculty-profile') setupFacultyProfileView();
             };
             document.querySelector('#sidebar-nav').addEventListener('click', (e) => {
                 const link = e.target.closest('.nav-link');
@@ -1153,7 +1399,16 @@
             function setupModal(modalId, openBtnId) {
                 const modal = document.getElementById(modalId);
                 const openBtn = document.getElementById(openBtnId);
-                if (openBtn) openBtn.addEventListener('click', () => modal.classList.remove('hidden'));
+                if (openBtn) openBtn.addEventListener('click', () => {
+                    const form = modal.querySelector('form');
+                    if (form) form.reset();
+                    // Reset image preview if it exists in the modal
+                    const imgPreview = modal.querySelector('img');
+                    if(imgPreview && imgPreview.id === 'institute-logo-preview') {
+                        imgPreview.src = 'https://placehold.co/128x128/e2e8f0/64748b?text=Upload+Logo';
+                    }
+                    modal.classList.remove('hidden');
+                });
                 modal.addEventListener('click', (e) => {
                     if (e.target.classList.contains('modal-backdrop') || e.target.closest('.modal-close-btn')) {
                         modal.classList.add('hidden');
@@ -1165,14 +1420,15 @@
                 });
             }
             setupModal('create-classroom-modal', 'add-classroom-btn');
-            setupModal('add-student-modal', null); // Opened programmatically
-            setupModal('qr-code-modal', null); // Opened programmatically
-            setupModal('restore-student-modal', null); // Opened programmatically
+            setupModal('add-student-modal', null); 
+            setupModal('qr-code-modal', null); 
+            setupModal('restore-student-modal', null); 
             setupModal('post-notice-modal', 'post-notice-btn');
             setupModal('create-club-modal', 'create-club-btn');
             setupModal('edit-rankers-modal', 'edit-rankers-btn');
             setupModal('class-details-modal', null);
             setupModal('exit-class-modal', null);
+            setupModal('create-institute-modal', 'create-institute-btn');
 
 
             // --- HOME VIEW ---
@@ -1203,14 +1459,24 @@
                     container.innerHTML = snap.docs.map(doc => {
                         const notice = doc.data();
                         const date = notice.createdAt?.toDate().toLocaleDateString() || 'Just now';
+                        const canDelete = currentUserRole === 'admin' || currentUserRole === 'teacher';
+                        
                         return `
-                            <div class="p-4 bg-white dark:bg-slate-800 rounded-lg shadow-inner">
-                                <h3 class="font-bold">${notice.title}</h3>
-                                <p class="text-sm text-slate-600 dark:text-slate-400 mt-1">${notice.content}</p>
-                                <p class="text-xs text-slate-400 dark:text-slate-500 mt-2">Posted by ${notice.authorName} on ${date}</p>
+                            <div class="p-4 bg-white dark:bg-slate-800 rounded-lg shadow-inner flex justify-between items-start gap-4">
+                                <div class="flex-grow">
+                                    <h3 class="font-bold">${notice.title}</h3>
+                                    <p class="text-sm text-slate-600 dark:text-slate-400 mt-1 whitespace-pre-wrap">${notice.content}</p>
+                                    <p class="text-xs text-slate-400 dark:text-slate-500 mt-2">Posted by ${notice.authorName} on ${date}</p>
+                                </div>
+                                ${canDelete ? `
+                                <button data-id="${doc.id}" class="delete-notice-btn flex-shrink-0 p-2 text-slate-400 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full transition-colors">
+                                    <i data-lucide="trash-2" class="h-4 w-4"></i>
+                                </button>
+                                ` : ''}
                             </div>
                         `;
                     }).join('');
+                    lucide.createIcons();
                 });
                 unsubscribeListeners.push(unsub);
             }
@@ -1232,6 +1498,15 @@
                 
                 postNoticeForm.reset();
                 document.getElementById('post-notice-modal').classList.add('hidden');
+            });
+
+            document.getElementById('notice-board-container').addEventListener('click', async (e) => {
+                const deleteBtn = e.target.closest('.delete-notice-btn');
+                if (deleteBtn) {
+                    const noticeId = deleteBtn.dataset.id;
+                    const noticeRef = doc(db, 'artifacts', appId, 'public', 'data', 'notices', noticeId);
+                    await deleteDoc(noticeRef).catch(err => console.error("Error deleting notice:", err));
+                }
             });
             
             // --- RANKERS LIST LOGIC ---
@@ -1622,6 +1897,160 @@
                 classroomDetailView.classList.add('hidden');
                 listenToClassrooms();
             }
+            
+            // --- STUDENTS VIEW SETUP (Admin) ---
+            function setupStudentsView() {
+                if (currentUserRole !== 'admin') return;
+
+                const studentsListBody = document.getElementById('admin-students-list');
+                studentsListBody.innerHTML = `<tr><td colspan="5" class="text-center p-8 text-slate-500">Loading students...</td></tr>`;
+                
+                const usersRef = collection(db, 'artifacts', appId, 'users');
+                const q = query(usersRef, where("role", "==", "student"));
+
+                const unsub = onSnapshot(q, (snap) => {
+                    if (snap.empty) {
+                        studentsListBody.innerHTML = `<tr><td colspan="5" class="text-center p-8 text-slate-500">No students have registered yet.</td></tr>`;
+                        return;
+                    }
+                    studentsListBody.innerHTML = snap.docs.map(doc => {
+                        const student = doc.data();
+                        return `
+                            <tr class="border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                                <td class="px-6 py-4 font-medium flex items-center gap-3">
+                                    <img src="${student.photoURL || `https://placehold.co/40x40/e2e8f0/64748b?text=${student.name?.[0] || 'S'}`}" class="h-8 w-8 rounded-full object-cover">
+                                    <span>${student.name || 'N/A'}</span>
+                                </td>
+                                <td class="px-6 py-4">${student.email || 'N/A'}</td>
+                                <td class="px-6 py-4">${student.enrollmentNumber || 'Not set'}</td>
+                                <td class="px-6 py-4">
+                                    <span class="px-2 py-1 text-xs font-medium rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300">
+                                        Active
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <button class="p-2 text-slate-500 hover:text-blue-600"><i data-lucide="edit" class="h-4 w-4"></i></button>
+                                    <button class="p-2 text-slate-500 hover:text-red-600"><i data-lucide="trash-2" class="h-4 w-4"></i></button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                    lucide.createIcons();
+                });
+                unsubscribeListeners.push(unsub);
+            }
+
+            // --- INSTITUTE VIEW SETUP (Admin) ---
+            function setupInstituteView() {
+                if (currentUserRole !== 'admin') return;
+
+                const container = document.getElementById('institutes-list-container');
+
+                const institutesRef = collection(db, 'artifacts', appId, 'public', 'data', 'institutes');
+                const q = query(institutesRef, orderBy('createdAt', 'desc'));
+
+                const unsub = onSnapshot(q, (snap) => {
+                    if (snap.empty) {
+                        container.innerHTML = `<div class="col-span-full text-center p-8">
+                            <i data-lucide="university" class="mx-auto h-16 w-16 text-slate-400"></i>
+                            <h3 class="mt-4 text-lg font-medium">No institutes found</h3>
+                            <p class="mt-1 text-sm text-slate-500">Get started by creating your first institute.</p>
+                        </div>`;
+                        lucide.createIcons();
+                        return;
+                    }
+                    container.innerHTML = snap.docs.map(doc => {
+                        const institute = { id: doc.id, ...doc.data() };
+                        return `
+                            <div class="p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-md flex flex-col">
+                                <div class="flex-grow">
+                                    <img src="${institute.logoUrl || 'https://placehold.co/100x100/e2e8f0/64748b?text=Logo'}" alt="Logo" class="w-20 h-20 rounded-full mx-auto mb-4 object-cover">
+                                    <h3 class="text-lg font-bold text-center">${institute.name}</h3>
+                                    <div class="mt-4 p-2 bg-slate-100 dark:bg-slate-700 rounded-lg text-center">
+                                        <p class="text-xs text-slate-500 dark:text-slate-400">Join Code</p>
+                                        <div class="flex items-center justify-center gap-2 mt-1 relative">
+                                            <p class="font-mono font-bold text-lg text-blue-500">${institute.joinCode}</p>
+                                            <button onclick="copyJoinCode('${institute.joinCode}', this)" class="p-1 text-slate-500 hover:text-blue-500">
+                                                <i data-lucide="copy" class="h-4 w-4"></i>
+                                            </button>
+                                            <span class="copied-feedback">Copied!</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-4 border-t dark:border-slate-700 pt-4 flex gap-2">
+                                     <button class="flex-1 py-2 px-3 text-sm font-semibold rounded-lg bg-indigo-100 text-indigo-700 hover:bg-indigo-200">Edit</button>
+                                     <button class="flex-1 py-2 px-3 text-sm font-semibold rounded-lg bg-red-100 text-red-700 hover:bg-red-200">Delete</button>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                    lucide.createIcons();
+                });
+                unsubscribeListeners.push(unsub);
+            }
+            
+            window.copyJoinCode = (code, buttonElement) => {
+                navigator.clipboard.writeText(code).then(() => {
+                    const feedback = buttonElement.parentElement.querySelector('.copied-feedback');
+                    feedback.classList.add('show');
+                    setTimeout(() => feedback.classList.remove('show'), 1500);
+                });
+            }
+
+            const createInstituteForm = document.getElementById('create-institute-form');
+            const createInstituteModal = document.getElementById('create-institute-modal');
+            
+            createInstituteForm.addEventListener('submit', async(e) => {
+                 e.preventDefault();
+                 const submitButton = createInstituteForm.querySelector('button[type="submit"]');
+                 const errorEl = document.getElementById('create-institute-error');
+                 errorEl.classList.add('hidden');
+
+                 const originalHTML = submitButton.innerHTML;
+                 submitButton.disabled = true;
+                 submitButton.innerHTML = `<span class="loader-small"></span> Creating...`;
+                 
+                 try {
+                     const logoInput = createInstituteModal.querySelector('#institute-logo-input');
+                     const logoFile = logoInput.files[0];
+                     let logoDataUrl = null;
+
+                     if (logoFile) {
+                        if (logoFile.size > 200 * 1024) {
+                           throw new Error("Logo image must be under 200KB.");
+                        }
+                        logoDataUrl = await new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = e => resolve(e.target.result);
+                            reader.onerror = err => reject(err);
+                            reader.readAsDataURL(logoFile);
+                        });
+                     }
+                     
+                     const joinCode = Math.random().toString(16).substr(2, 6).toUpperCase();
+
+                     const institutesRef = collection(db, 'artifacts', appId, 'public', 'data', 'institutes');
+                     await addDoc(institutesRef, {
+                        name: createInstituteForm['institute-name'].value,
+                        address: createInstituteForm['institute-address'].value,
+                        contact: createInstituteForm['institute-contact'].value,
+                        logoUrl: logoDataUrl,
+                        joinCode: joinCode,
+                        createdAt: serverTimestamp(),
+                        adminId: userId
+                     });
+
+                     createInstituteModal.classList.add('hidden');
+                     createInstituteForm.reset();
+
+                 } catch(error) {
+                    errorEl.textContent = error.message;
+                    errorEl.classList.remove('hidden');
+                 } finally {
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalHTML;
+                 }
+            });
 
             const createClassroomForm = document.getElementById('create-classroom-form');
             createClassroomForm.addEventListener('submit', async (e) => {
@@ -2047,6 +2476,108 @@
                 }
             });
 
+            // --- FACULTY PROFILE ---
+            async function setupFacultyProfileView() {
+                if (!auth.currentUser || currentUserRole !== 'teacher') return;
+
+                const userDocRef = doc(db, 'artifacts', appId, 'users', userId);
+                const userDocSnap = await getDoc(userDocRef);
+                const userData = userDocSnap.exists() ? userDocSnap.data() : {};
+
+                document.getElementById('faculty-name').value = auth.currentUser.displayName || '';
+                document.getElementById('faculty-email').value = auth.currentUser.email || '';
+                document.getElementById('faculty-photo-preview').src = userData.photoURL || `https://placehold.co/128x128/e2e8f0/64748b?text=${auth.currentUser.displayName?.[0] || 'T'}`;
+                
+                document.getElementById('faculty-mobile').value = userData.mobile || '';
+                document.getElementById('faculty-gender').value = userData.gender || 'Male';
+                document.getElementById('faculty-degree').value = userData.degree || '';
+                document.getElementById('faculty-certifications').value = userData.certifications || '';
+                document.getElementById('faculty-skills').value = userData.skills || '';
+                
+                const photoInput = document.getElementById('faculty-photo-input');
+                const photoPreview = document.getElementById('faculty-photo-preview');
+                const profileError = document.getElementById('faculty-profile-error');
+
+                photoInput.onchange = () => {
+                    const file = photoInput.files[0];
+                    if (!file) return;
+
+                    if (file.size > 200 * 1024) { // 200 KB
+                        profileError.textContent = "Image size must be under 200KB.";
+                        profileError.classList.remove('hidden');
+                        photoInput.value = ""; // Reset input
+                        return;
+                    }
+                    profileError.classList.add('hidden');
+                    const reader = new FileReader();
+                    reader.onload = (e) => { photoPreview.src = e.target.result; };
+                    reader.readAsDataURL(file);
+                };
+            }
+
+            const facultyProfileForm = document.getElementById('faculty-profile-form');
+            facultyProfileForm.addEventListener('submit', async (e) => {
+                 e.preventDefault();
+                const submitButton = facultyProfileForm.querySelector('button[type="submit"]');
+                const originalButtonHTML = submitButton.innerHTML;
+                submitButton.disabled = true;
+                submitButton.innerHTML = `<span class="loader-small"></span> Saving...`;
+
+                const profileError = document.getElementById('faculty-profile-error');
+                const profileSuccess = document.getElementById('faculty-profile-success');
+                profileError.classList.add('hidden');
+                profileSuccess.classList.add('hidden');
+
+                try {
+                    const userDocRef = doc(db, 'artifacts', appId, 'users', userId);
+                    const photoFile = document.getElementById('faculty-photo-input').files[0];
+                    let photoDataUrl = null;
+
+                    if (photoFile) {
+                        photoDataUrl = await new Promise((resolve, reject) => {
+                             if (photoFile.size > 200 * 1024) {
+                                reject(new Error("Image size must be under 200KB."));
+                                return;
+                            }
+                            const reader = new FileReader();
+                            reader.onload = e => resolve(e.target.result);
+                            reader.onerror = err => reject(err);
+                            reader.readAsDataURL(photoFile);
+                        });
+                    }
+                    
+                    const dataToUpdate = {
+                        mobile: document.getElementById('faculty-mobile').value,
+                        gender: document.getElementById('faculty-gender').value,
+                        degree: document.getElementById('faculty-degree').value,
+                        certifications: document.getElementById('faculty-certifications').value,
+                        skills: document.getElementById('faculty-skills').value,
+                    };
+                    
+                    if (photoDataUrl) {
+                        dataToUpdate.photoURL = photoDataUrl;
+                    }
+
+                    await updateDoc(userDocRef, dataToUpdate);
+                    
+                    const userDocSnap = await getDoc(userDocRef);
+                    if(userDocSnap.exists()) {
+                         document.getElementById('user-avatar').src = userDocSnap.data().photoURL || `https://placehold.co/40x40/7c3aed/ffffff?text=${auth.currentUser.displayName?.[0] || 'T'}`;
+                    }
+
+                    profileSuccess.textContent = "Profile updated successfully!";
+                    profileSuccess.classList.remove('hidden');
+                    setTimeout(() => profileSuccess.classList.add('hidden'), 3000);
+
+                } catch (error) {
+                    profileError.textContent = error.message;
+                    profileError.classList.remove('hidden');
+                    console.error("Error updating faculty profile:", error);
+                } finally {
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalButtonHTML;
+                }
+            });
 
             // --- QR CODE FUNCTIONALITY ---
             function setupStudentDetailsView() {
@@ -2067,6 +2598,21 @@
             const startScanBtn = document.getElementById('start-scan-btn');
             const scanResultEl = document.getElementById('scan-result');
             let isScanning = false;
+
+            // --- New Demo Button Logic ---
+            const demoBtn = document.getElementById('demo-mark-attendance-btn');
+            if (demoBtn) {
+                demoBtn.addEventListener('click', () => {
+                    scanResultEl.className = 'mt-4 text-center font-medium text-emerald-500';
+                    scanResultEl.textContent = 'Success! Attendance marked for demo class.';
+                    // Optionally stop scanning if it's active
+                    if (isScanning) {
+                        stopScanning();
+                    }
+                });
+            }
+            // --- End of New Demo Button Logic ---
+
             const onScanSuccess = async (decodedText) => {
                 scanResultEl.className = 'mt-4 text-center font-medium text-blue-500';
                 scanResultEl.textContent = 'Processing...';
@@ -2348,6 +2894,88 @@
             const sidebarToggle = document.getElementById('sidebar-toggle');
             sidebarToggle.addEventListener('click', () => sidebar.classList.toggle('-translate-x-full'));
             document.addEventListener('click', (e) => { if (!sidebar.contains(e.target) && !sidebarToggle.contains(e.target) && window.innerWidth < 640) sidebar.classList.add('-translate-x-full'); });
+
+            // --- SEARCH FUNCTIONALITY ---
+            const searchInput = document.getElementById('search-input');
+            const searchResultsPanel = document.getElementById('search-results-panel');
+            
+            function setupSearch() {
+                searchInput.addEventListener('input', () => {
+                    clearTimeout(searchDebounceTimeout);
+                    const query = searchInput.value.trim().toLowerCase();
+                    if (query.length < 2) {
+                        searchResultsPanel.classList.add('hidden');
+                        return;
+                    }
+                    searchDebounceTimeout = setTimeout(() => performSearch(query), 300);
+                });
+
+                document.addEventListener('click', (e) => {
+                    if (!searchInput.contains(e.target) && !searchResultsPanel.contains(e.target)) {
+                        searchResultsPanel.classList.add('hidden');
+                    }
+                });
+            }
+
+            async function performSearch(query) {
+                let results = [];
+                // Admin can search everything
+                if (currentUserRole === 'admin') {
+                     // Search Institutes
+                    const instRef = collection(db, 'artifacts', appId, 'public', 'data', 'institutes');
+                    const instSnap = await getDocs(query(instRef, where('name', '>=', query), where('name', '<=', query + '\uf8ff')));
+                    instSnap.forEach(doc => results.push({ type: 'Institute', name: doc.data().name, view: 'institute' }));
+                    // Search Students
+                    const studentRef = collection(db, 'artifacts', appId, 'users');
+                    const studentSnap = await getDocs(query(studentRef, where('role', '==', 'student'), where('name', '>=', query), where('name', '<=', query + '\uf8ff')));
+                    studentSnap.forEach(doc => results.push({ type: 'Student', name: doc.data().name, view: 'students' }));
+                }
+                // Teacher can search their classes and students
+                if (currentUserRole === 'teacher') {
+                    const classesRef = collection(db, 'artifacts', appId, 'users', userId, 'classes');
+                    const classSnap = await getDocs(classesRef);
+                    classSnap.forEach(doc => {
+                        if (doc.data().name.toLowerCase().includes(query)) {
+                            results.push({ type: 'Classroom', name: doc.data().name, view: 'classrooms' });
+                        }
+                    });
+                }
+                // Student can search clubs
+                if (currentUserRole === 'student') {
+                    const clubsRef = collection(db, 'artifacts', appId, 'public', 'data', 'clubs');
+                    const clubSnap = await getDocs(query(clubsRef, where('name', '>=', query), where('name', '<=', query + '\uf8ff')));
+                    clubSnap.forEach(doc => results.push({ type: 'Club', name: doc.data().name, view: 'clubs'}));
+                }
+
+                renderSearchResults(results);
+            }
+            
+            function renderSearchResults(results) {
+                if (results.length === 0) {
+                    searchResultsPanel.innerHTML = `<div class="p-4 text-center text-sm text-slate-500">No results found.</div>`;
+                    searchResultsPanel.classList.remove('hidden');
+                    return;
+                }
+
+                searchResultsPanel.innerHTML = results.map(r => `
+                    <a href="#" data-view="${r.view}" class="search-result-item block p-3 hover:bg-slate-100 dark:hover:bg-slate-700 border-b dark:border-slate-700 last:border-b-0">
+                        <p class="font-semibold">${r.name}</p>
+                        <p class="text-xs text-slate-500">${r.type}</p>
+                    </a>
+                `).join('');
+                searchResultsPanel.classList.remove('hidden');
+            }
+
+            searchResultsPanel.addEventListener('click', (e) => {
+                const link = e.target.closest('.search-result-item');
+                if (link) {
+                    e.preventDefault();
+                    switchView(link.dataset.view);
+                    searchResultsPanel.classList.add('hidden');
+                    searchInput.value = '';
+                }
+            });
+
 
             // Initial load
             lucide.createIcons();
