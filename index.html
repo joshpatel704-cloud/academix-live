@@ -1125,6 +1125,7 @@
             let currentClassId = null;
             let unsubscribeListeners = []; // To store Firestore listeners
             let charts = {};
+            let currentClassId = null;
             let searchDebounceTimeout;
 
             const loginPage = document.getElementById('login-page');
@@ -2130,18 +2131,21 @@
 
                 if (viewType === 'manage-students') {
                     content += `
-                        <div class="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md">
-                            <div class="flex justify-between items-center mb-4">
-                                <h3 class="font-semibold">Student List</h3>
-                                <button id="show-add-student-modal" class="flex items-center gap-2 py-2 px-4 text-sm font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700"><i data-lucide="user-plus"></i> Add Student</button>
-                            </div>
-                            <div class="overflow-x-auto">
-                                <table class="w-full text-sm text-left">
-                                    <thead class="text-xs text-slate-700 uppercase bg-slate-50 dark:bg-slate-700 dark:text-slate-400"><tr><th class="px-6 py-3">Name</th><th class="px-6 py-3">Roll No.</th><th class="px-6 py-3">Email/ID</th><th class="px-6 py-3">Actions</th></tr></thead>
-                                    <tbody id="class-students-list"></tbody>
-                                </table>
+                        <div id="student-list-container">
+                            <div class="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="font-semibold">Student List</h3>
+                                    <button id="show-add-student-modal" class="flex items-center gap-2 py-2 px-4 text-sm font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700"><i data-lucide="user-plus"></i> Add Student</button>
+                                </div>
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-sm text-left">
+                                        <thead class="text-xs text-slate-700 uppercase bg-slate-50 dark:bg-slate-700 dark:text-slate-400"><tr><th class="px-6 py-3">Name</th><th class="px-6 py-3">Roll No.</th><th class="px-6 py-3">Email/ID</th><th class="px-6 py-3">Actions</th></tr></thead>
+                                        <tbody id="class-students-list"></tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
+                        <div id="student-dashboard-content" class="hidden"></div>
                     `;
                     detailView.innerHTML = content;
                     listenToClassStudents();
@@ -2291,8 +2295,8 @@
                             <td class="px-6 py-4">${doc.data().roll}</td>
                             <td class="px-6 py-4">${doc.data().email}</td>
                             <td class="px-6 py-4 flex gap-2">
-                                <button class="show-student-qr-btn p-2 text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md" data-id="${doc.id}" data-name="${doc.data().name}"><i data-lucide="qr-code"></i></button>
-                                <button class="delete-student-btn p-2 text-red-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md" data-id="${doc.id}" data-email="${doc.data().email}"><i data-lucide="trash-2"></i></button>
+                                <button class="view-student-dashboard-btn p-2 text-slate-500 hover:text-blue-500 rounded-md" title="View Dashboard" data-student-id="${doc.id}" data-student-name="${doc.data().name}"><i data-lucide="layout-dashboard"></i></button>
+                                <button class="delete-student-btn p-2 text-slate-500 hover:text-red-500 rounded-md" title="Delete Student" data-id="${doc.id}" data-email="${doc.data().email}"><i data-lucide="trash-2"></i></button>
                             </td>
                         </tr>
                     `).join('');
@@ -2323,6 +2327,12 @@
                         deleteDoc(doc.ref);
                     });
                 }
+                const viewDashboardBtn = e.target.closest('.view-student-dashboard-btn');
+                if (viewDashboardBtn) {
+                    const studentId = viewDashboardBtn.dataset.studentId;
+                    const studentName = viewDashboardBtn.dataset.studentName;
+                    showStudentDashboard(studentId, studentName);
+                }
             });
 
             async function startClassAttendanceSession() {
@@ -2348,6 +2358,115 @@
             
             async function exportClassAttendanceCSV() { /* ... */ }
             async function exportClassAttendancePDF() { /* ... */ }
+
+            // --- Student Dashboard View (for Teacher) ---
+            async function showStudentDashboard(studentId, studentName) {
+                document.getElementById('student-list-container').classList.add('hidden');
+                const dashboardContainer = document.getElementById('student-dashboard-content');
+                dashboardContainer.classList.remove('hidden');
+                dashboardContainer.innerHTML = `<div class="text-center p-8"><div class="loader mx-auto"></div><p class="mt-4">Loading student data...</p></div>`;
+
+                // Fetch attendance data for the class and the specific student
+                const classRef = doc(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId);
+                const attendanceRef = collection(classRef, 'attendance');
+
+                const allAttendanceSnap = await getDocs(attendanceRef);
+                const uniqueLectureDates = [...new Set(allAttendanceSnap.docs.map(d => d.data().date))].sort();
+                const totalLectures = uniqueLectureDates.length;
+
+                const studentAttendanceQuery = query(attendanceRef, where("studentId", "==", studentId));
+                const studentAttendanceSnap = await getDocs(studentAttendanceQuery);
+                const attendedLectures = studentAttendanceSnap.size;
+                const ratio = totalLectures > 0 ? ((attendedLectures / totalLectures) * 100).toFixed(1) : 0;
+                const absentLectures = totalLectures - attendedLectures;
+
+                // Prepare data for the weekly progress chart
+                const today = new Date();
+                const weeklyData = [];
+                for (let i = 6; i >= 0; i--) {
+                    const date = new Date(today);
+                    date.setDate(today.getDate() - i);
+                    const dateString = date.toISOString().split('T')[0];
+                    const dayLabel = date.toLocaleDateString('en-US', { weekday: 'short' });
+                    
+                    let status = 0; // 0 for no class
+                    if (uniqueLectureDates.includes(dateString)) {
+                        const wasPresent = studentAttendanceSnap.docs.some(d => d.data().date === dateString);
+                        status = wasPresent ? 1 : -1; // 1 for present, -1 for absent
+                    }
+                    weeklyData.push({ label: dayLabel, status: status });
+                }
+
+                dashboardContainer.innerHTML = `
+                    <div class="flex items-center gap-4 mb-6">
+                        <button id="back-to-student-list" class="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700"><i data-lucide="arrow-left"></i></button>
+                        <div>
+                            <h2 class="text-2xl font-bold">${studentName}</h2>
+                            <p class="text-slate-500 dark:text-slate-400">Attendance Dashboard</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-1 p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md">
+                            <h3 class="font-semibold mb-2">Attendance Breakdown</h3>
+                            <div class="chart-container" style="height: 200px;">
+                                <canvas id="student-pie-chart"></canvas>
+                            </div>
+                            <div class="text-center mt-4">
+                                <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Overall Ratio</p>
+                                <p class="text-4xl font-bold text-blue-500">${ratio}%</p>
+                                <p class="text-xs text-slate-400">(${attendedLectures} of ${totalLectures} lectures attended)</p>
+                            </div>
+                        </div>
+                        <div class="lg:col-span-2 p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md">
+                            <h3 class="font-semibold mb-4">This Week's Progress</h3>
+                            <div class="chart-container" style="height:300px">
+                                <canvas id="student-progress-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                lucide.createIcons();
+                
+                // Render Pie Chart
+                if (charts.studentPie) charts.studentPie.destroy();
+                const pieCtx = document.getElementById('student-pie-chart').getContext('2d');
+                charts.studentPie = new Chart(pieCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Present', 'Absent'],
+                        datasets: [{ data: [attendedLectures, absentLectures], backgroundColor: ['#10b981', '#ef4444'], borderColor: [document.documentElement.classList.contains('dark') ? '#1e293b' : '#ffffff'], hoverOffset: 4 }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: htmlEl.classList.contains('dark') ? '#e2e8f0' : '#475569' } } } }
+                });
+
+                // Render Bar Chart for weekly progress
+                if (charts.studentProgress) charts.studentProgress.destroy();
+                const progressCtx = document.getElementById('student-progress-chart').getContext('2d');
+                charts.studentProgress = new Chart(progressCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: weeklyData.map(d => d.label),
+                        datasets: [{
+                            label: 'Attendance',
+                            data: weeklyData.map(d => d.status),
+                            backgroundColor: (ctx) => ctx.raw === 1 ? '#10b981' : (ctx.raw === -1 ? '#ef4444' : (htmlEl.classList.contains('dark') ? '#334155' : '#e2e8f0')),
+                            borderRadius: 6,
+                        }]
+                    },
+                    options: {
+                        ...getChartOptions(),
+                        scales: { y: { ticks: { callback: (val) => val === 1 ? 'Present' : (val === -1 ? 'Absent' : 'No Class') }, min: -1.5, max: 1.5 }, x: {} },
+                        plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => ctx.raw === 1 ? 'Status: Present' : (ctx.raw === -1 ? 'Status: Absent' : 'Status: No Class') } } }
+                    }
+                });
+
+                document.getElementById('back-to-student-list').addEventListener('click', () => {
+                    dashboardContainer.classList.add('hidden');
+                    document.getElementById('student-list-container').classList.remove('hidden');
+                    if (charts.studentPie) charts.studentPie.destroy();
+                    if (charts.studentProgress) charts.studentProgress.destroy();
+                });
+            }
 
             // --- Chart functions ---
              const getChartOptions = () => ({ responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: htmlEl.classList.contains('dark') ? '#e2e8f0' : '#475569' } } }, scales: { y: { beginAtZero: true, grid: { color: htmlEl.classList.contains('dark') ? '#334155' : '#e2e8f0' }, ticks: { color: htmlEl.classList.contains('dark') ? '#94a3b8' : '#64748b' } }, x: { grid: { color: htmlEl.classList.contains('dark') ? '#334155' : '#e2e8f0' }, ticks: { color: htmlEl.classList.contains('dark') ? '#94a3b8' : '#64748b' } } } });
@@ -2983,4 +3102,5 @@
     </script>
 </body>
 </html>
+
 
