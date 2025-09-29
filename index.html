@@ -1070,7 +1070,7 @@
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, addDoc, getDoc, getDocs, onSnapshot, query, where, serverTimestamp, writeBatch, updateDoc, orderBy, deleteDoc, collectionGroup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- Firebase Configuration ---
@@ -1090,44 +1090,13 @@
         // and falls back to your user-provided config above for local development.
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : firebaseConfigFromUser;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
 
         // Initialize Firebase
         let fbApp, auth, db;
         
         document.addEventListener('DOMContentLoaded', () => {
-
-            // Check if the configuration is still a placeholder
-            if (firebaseConfig.apiKey.startsWith("PASTE_")) {
-                console.error("Firebase config is not valid. Please paste your project's configuration.");
-                const loadingContent = document.getElementById('loading-content');
-                if(loadingContent) {
-                    loadingContent.innerHTML = '<p class="text-red-500 text-center p-4"><b>Action Required:</b><br>Please provide your Firebase configuration in the HTML file to connect to the server.</p>';
-                }
-                return; // Stop the script if the config is just a placeholder
-            }
-            
-            try {
-                fbApp = initializeApp(firebaseConfig);
-                auth = getAuth(fbApp);
-                db = getFirestore(fbApp);
-            } catch (error) {
-                console.error("Error initializing Firebase:", error);
-                const loadingContent = document.getElementById('loading-content');
-                if(loadingContent) {
-                    loadingContent.innerHTML = `<p class="text-red-500 text-center p-4"><b>Firebase Error:</b><br>${error.message}</p>`;
-                }
-                return;
-            }
-
-            // Global state
-            let userId = null;
-            let currentUserRole = null;
-            let currentClassId = null;
-            let unsubscribeListeners = []; // To store Firestore listeners
-            let charts = {};
-            let currentClassId = null;
-            let searchDebounceTimeout;
-
             const loginPage = document.getElementById('login-page');
             const app = document.getElementById('app');
             const loginView = document.getElementById('login-view');
@@ -1147,6 +1116,14 @@
             const globalError = document.getElementById('global-error');
             const joinCodeError = document.getElementById('join-code-error');
             
+            // Global state
+            let userId = null;
+            let currentUserRole = null;
+            let currentClassId = null;
+            let unsubscribeListeners = []; // To store Firestore listeners
+            let charts = {};
+            let searchDebounceTimeout;
+
             const setLoginUiState = (state, errorMsg = null) => {
                 loginView.classList.toggle('hidden', state !== 'login');
                 signupView.classList.toggle('hidden', state !== 'signup');
@@ -1162,52 +1139,95 @@
                 }
             }
 
-            // --- AUTHENTICATION ---
-            onAuthStateChanged(auth, async (user) => {
-                try {
-                    if (user && !user.isAnonymous) {
-                        userId = user.uid;
-                        setLoginUiState('loading');
-                        loginPage.classList.remove('hidden');
-                        app.classList.add('hidden');
-
-                        const userProfileRef = doc(db, 'artifacts', appId, 'users', userId);
-                        const userProfileSnap = await getDoc(userProfileRef);
-
-                        if (userProfileSnap.exists() && userProfileSnap.data().role) {
-                            const profile = userProfileSnap.data();
-                            // For teachers, ensure they have an instituteId before showing the app
-                            if (profile.role === 'teacher' && !profile.instituteId) {
-                                setLoginUiState('teacher-join');
-                            } else {
-                                await showApp(profile.role, user);
-                            }
-                        } else {
-                            if (!userProfileSnap.exists()) {
-                                await setDoc(userProfileRef, {
-                                    name: user.displayName,
-                                    email: user.email,
-                                    photoURL: user.photoURL,
-                                    createdAt: serverTimestamp()
-                                });
-                            }
-                            setLoginUiState('role');
-                        }
-                    } else {
-                        userId = null;
-                        currentUserRole = null;
-                        app.classList.add('hidden');
-                        loginPage.classList.remove('hidden');
-                        setLoginUiState('login');
-                        unsubscribeListeners.forEach(unsub => unsub());
-                        unsubscribeListeners = [];
-                    }
-                } catch (error) {
-                    console.error("Authentication state change error:", error);
-                    setLoginUiState('loading', 'Error connecting to the database. Check Firestore rules.');
+            const initializeAndAuthenticate = async () => {
+                // Check if the configuration is still a placeholder
+                if (firebaseConfig.apiKey.startsWith("PASTE_")) {
+                    console.error("Firebase config is not valid. Please paste your project's configuration.");
+                    setLoginUiState('loading', 'Action Required: Please provide your Firebase configuration in the HTML file to connect to the server.');
+                    return; 
                 }
-            });
+                
+                try {
+                    fbApp = initializeApp(firebaseConfig);
+                    auth = getAuth(fbApp);
+                    db = getFirestore(fbApp);
+
+                    // --- MANDATORY CANVAS AUTHENTICATION ---
+                    // Attempt to sign in with the custom token or anonymously if not available.
+                    setLoginUiState('loading');
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                        console.log("Signed in with custom token.");
+                    } else {
+                        await signInAnonymously(auth);
+                        console.log("Signed in anonymously.");
+                    }
+
+                } catch (error) {
+                    console.error("Error initializing or authenticating Firebase:", error);
+                    setLoginUiState('loading', `Initialization Error: ${error.message}. Please check console.`);
+                    return;
+                }
+
+                // --- AUTHENTICATION STATE CHANGE LISTENER (Handles all subsequent logins) ---
+                onAuthStateChanged(auth, async (user) => {
+                    try {
+                        if (user && !user.isAnonymous) {
+                            userId = user.uid;
+                            setLoginUiState('loading');
+                            loginPage.classList.remove('hidden');
+                            app.classList.add('hidden');
+
+                            const userProfileRef = doc(db, 'artifacts', appId, 'users', userId);
+                            const userProfileSnap = await getDoc(userProfileRef);
+
+                            if (userProfileSnap.exists() && userProfileSnap.data().role) {
+                                const profile = userProfileSnap.data();
+                                // For teachers, ensure they have an instituteId before showing the app
+                                if (profile.role === 'teacher' && !profile.instituteId) {
+                                    setLoginUiState('teacher-join');
+                                } else {
+                                    await showApp(profile.role, user);
+                                }
+                            } else {
+                                if (!userProfileSnap.exists()) {
+                                    await setDoc(userProfileRef, {
+                                        name: user.displayName,
+                                        email: user.email,
+                                        photoURL: user.photoURL,
+                                        createdAt: serverTimestamp()
+                                    });
+                                }
+                                setLoginUiState('role');
+                            }
+                        } else if (user && user.isAnonymous) {
+                             // If the user is anonymous (after initial auth) and has not initiated a proper login, show the login screen.
+                            userId = user.uid; // Keep track of anonymous UID for now
+                            currentUserRole = null;
+                            app.classList.add('hidden');
+                            loginPage.classList.remove('hidden');
+                            setLoginUiState('login');
+                        } else {
+                            // User is signed out completely
+                            userId = null;
+                            currentUserRole = null;
+                            app.classList.add('hidden');
+                            loginPage.classList.remove('hidden');
+                            setLoginUiState('login');
+                            unsubscribeListeners.forEach(unsub => unsub());
+                            unsubscribeListeners = [];
+                        }
+                    } catch (error) {
+                        console.error("Authentication state change error:", error);
+                        setLoginUiState('loading', 'Error processing user profile. Check Firestore rules.');
+                    }
+                });
+            };
             
+            // Run initialization
+            initializeAndAuthenticate();
+
+
             // --- View Toggling ---
             showSignupLink.addEventListener('click', (e) => { e.preventDefault(); setLoginUiState('signup'); });
             showLoginLink.addEventListener('click', (e) => { e.preventDefault(); setLoginUiState('login'); });
@@ -1335,7 +1355,11 @@
                 }
             });
 
-            window.logout = async () => { await signOut(auth); };
+            window.logout = async () => { 
+                // Before signing out the proper user, we can sign in anonymously to maintain a session context.
+                await signOut(auth); 
+                await signInAnonymously(auth); // Sign in anonymously to stay in the environment.
+            };
             
             // --- THEME MANAGEMENT ---
             const themeToggleButtons = document.querySelectorAll('#theme-toggle, #settings-theme-toggle');
@@ -1839,15 +1863,21 @@
                 }
             }
             
-            // --- ATTENDANCE VIEW SETUP ---
+            // --- ATTENDANCE VIEW SETUP (Student) ---
             function setupAttendanceView() {
                 if (currentUserRole === 'student') {
                     document.getElementById('student-attendance-view').classList.remove('hidden');
+                    document.getElementById('admin-global-attendance-view').classList.add('hidden');
                     generateStudentIdQRCode();
                     setupStudentDetailsView();
                     displayStudentClasses(); 
                 } else if (currentUserRole === 'admin') {
                     document.getElementById('admin-global-attendance-view').classList.remove('hidden');
+                    document.getElementById('student-attendance-view').classList.add('hidden');
+                    // TODO: Setup global admin attendance listener
+                } else {
+                     document.getElementById('student-attendance-view').classList.add('hidden');
+                     document.getElementById('admin-global-attendance-view').classList.add('hidden');
                 }
             }
 
@@ -2346,13 +2376,13 @@
             }
 
             function listenToClassAttendance() {
-                // ... same as before
+                // TODO: Implement teacher side live attendance listener
             }
 
             document.getElementById('classroom-detail-view').addEventListener('click', async (e) => {
                 const markBtn = e.target.closest('.mark-manual-btn');
                 if (markBtn) {
-                    // ... same as before
+                    // TODO: Implement manual attendance marking
                 }
             });
             
@@ -3102,5 +3132,3 @@
     </script>
 </body>
 </html>
-
-
