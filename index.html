@@ -1191,6 +1191,7 @@
                                 }
                             } else {
                                 if (!userProfileSnap.exists()) {
+                                    // Only create a new profile if the user is non-anonymous (i.e., email/Google signed in)
                                     await setDoc(userProfileRef, {
                                         name: user.displayName,
                                         email: user.email,
@@ -1201,12 +1202,14 @@
                                 setLoginUiState('role');
                             }
                         } else if (user && user.isAnonymous) {
-                             // If the user is anonymous (after initial auth) and has not initiated a proper login, show the login screen.
+                            // Anonymous user logged in (or remained logged in). Send them to manual login.
                             userId = user.uid; // Keep track of anonymous UID for now
                             currentUserRole = null;
                             app.classList.add('hidden');
                             loginPage.classList.remove('hidden');
                             setLoginUiState('login');
+                            unsubscribeListeners.forEach(unsub => unsub());
+                            unsubscribeListeners = [];
                         } else {
                             // User is signed out completely
                             userId = null;
