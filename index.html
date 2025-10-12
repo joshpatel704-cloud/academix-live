@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="light">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -180,6 +180,46 @@
             opacity: 1;
             bottom: -20px;
         }
+
+        /* --- NEW --- Highlight on Hover Effect */
+        button, .nav-link, 
+        #clubs-container > div, 
+        #classrooms-container > div, 
+        #institutes-list-container > div,
+        .student-class-card,
+        #notice-board-container > div,
+        #rankers-list-container > div {
+            transition: all 0.2s ease-in-out;
+        }
+
+        button:hover, .nav-link:hover, 
+        #clubs-container > div:hover, 
+        #classrooms-container > div:hover, 
+        #institutes-list-container > div:hover,
+        .student-class-card:hover,
+        #notice-board-container > div:hover,
+        #rankers-list-container > div:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.07);
+            background-color: #f8fafc; /* slate-50 */
+        }
+        
+        .dark button:hover, .dark .nav-link:hover, 
+        .dark #clubs-container > div:hover, 
+        .dark #classrooms-container > div:hover, 
+        .dark #institutes-list-container > div:hover,
+        .dark .student-class-card:hover,
+        .dark #notice-board-container > div:hover,
+        .dark #rankers-list-container > div:hover {
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            background-color: #334155; /* slate-700 */
+        }
+
+        /* Prevent double-transform on elements that might be buttons inside a hovered card */
+        div:hover > button:hover {
+            transform: none;
+        }
+        /* --- END NEW --- */
     </style>
 </head>
 <body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200 transition-colors duration-300">
@@ -1351,8 +1391,12 @@
             // --- THEME MANAGEMENT ---
             const themeToggleButtons = document.querySelectorAll('#theme-toggle, #settings-theme-toggle');
             const htmlEl = document.documentElement;
+
+            // On page load, remove any theme classes and apply the saved one to prevent conflicts
             const savedTheme = localStorage.getItem('theme') || 'light';
+            htmlEl.classList.remove('light', 'dark');
             htmlEl.classList.add(savedTheme);
+
             const toggleTheme = () => {
                 htmlEl.classList.toggle('dark');
                 htmlEl.classList.toggle('light');
@@ -1365,7 +1409,7 @@
             const navConfig = {
                 admin: [{ id: 'home', icon: 'home', text: 'Home'}, { id: 'institute', icon: 'university', text: 'Institute' }, { id: 'attendance', icon: 'calendar-check-2', text: 'Attendance' }, { id: 'students', icon: 'users', text: 'Students' }, { id: 'teachers', icon: 'contact', text: 'Teachers' }, { id: 'reports', icon: 'file-bar-chart-2', text: 'Reports' }, { id: 'settings', icon: 'settings', text: 'Settings' }],
                 teacher: [{ id: 'home', icon: 'home', text: 'Home'}, { id: 'faculty-profile', icon: 'user-circle', text: 'Faculty Profile' }, { id: 'classrooms', icon: 'school', text: 'Classrooms' }, { id: 'settings', icon: 'settings', text: 'Settings' }],
-                student: [{ id: 'home', icon: 'home', text: 'Home'}, { id: 'student-portal', icon: 'user-circle', text: 'Student Portal' }, { id: 'attendance', icon: 'calendar-check-2', text: 'Attendance' }, { id: 'settings', icon: 'settings', text: 'Settings' }]
+                student: [{ id: 'home', icon: 'home', text: 'Home'}, { id: 'dashboard', icon: 'layout-dashboard', text: 'Dashboard' }, { id: 'student-portal', icon: 'user-circle', text: 'Student Portal' }, { id: 'attendance', icon: 'calendar-check-2', text: 'Attendance' }, { id: 'settings', icon: 'settings', text: 'Settings' }]
             };
             const setupNav = (role) => {
                 document.querySelector('#sidebar-nav ul').innerHTML = navConfig[role].map((item, index) => `
@@ -1780,6 +1824,7 @@
 
                             let totalAttendedCount = 0;
                             let totalLecturesCount = 0;
+                            const studentAttendanceRecords = [];
 
                             if (enrolledClasses.length > 0) {
                                 const attendancePromises = enrolledClasses.map(async (enrolledClass) => {
@@ -1791,6 +1836,8 @@
                                     
                                     const studentAttendanceQuery = query(attendanceRef, where("studentId", "==", enrolledClass.studentId));
                                     const studentAttendanceSnap = await getDocs(studentAttendanceQuery);
+
+                                    studentAttendanceSnap.forEach(doc => studentAttendanceRecords.push(doc.data()));
                                     
                                     return {
                                         lecturesInClass: uniqueDays.size,
@@ -1844,6 +1891,43 @@
                                             } 
                                         }
                                     }
+                                });
+                            }
+
+                            // Update Trend Chart for weekly progress
+                            const trendCtx = document.getElementById('attendanceTrendChart')?.getContext('2d');
+                            if (trendCtx) {
+                                const labels = [];
+                                const data = [];
+                                const today = new Date();
+                                
+                                for (let i = 6; i >= 0; i--) {
+                                    const date = new Date();
+                                    date.setDate(today.getDate() - i);
+                                    const dateString = date.toISOString().split('T')[0];
+                                    labels.push(date.toLocaleDateString('en-US', { weekday: 'short' }));
+                                    
+                                    const attendedOnDate = studentAttendanceRecords.filter(rec => rec.date === dateString).length;
+                                    data.push(attendedOnDate);
+                                }
+
+                                if (charts.attendanceTrend) {
+                                    charts.attendanceTrend.destroy();
+                                }
+                                charts.attendanceTrend = new Chart(trendCtx, {
+                                    type: 'line',
+                                    data: {
+                                        labels: labels,
+                                        datasets: [{
+                                            label: 'Lectures Attended',
+                                            data: data,
+                                            borderColor: '#3b82f6',
+                                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                            tension: 0.4,
+                                            fill: true
+                                        }]
+                                    },
+                                    options: getChartOptions()
                                 });
                             }
                         });
@@ -3127,3 +3211,4 @@
     </script>
 </body>
 </html>
+
