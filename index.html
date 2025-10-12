@@ -2847,23 +2847,33 @@
                 try {
                     const data = JSON.parse(decodedText);
                     if (data.classId && data.teacherId && data.session) {
-                        const requestsRef = collection(db, 'artifacts', appId, 'public', 'attendanceRequests');
-                        await addDoc(requestsRef, {
-                            teacherId: data.teacherId,
-                            classId: data.classId,
-                            studentEmail: auth.currentUser.email,
-                            studentName: auth.currentUser.displayName,
-                            timestamp: serverTimestamp(),
-                        });
-                        scanResultEl.textContent = `Success! Attendance request sent.`;
-                        scanResultEl.className = 'mt-4 text-center font-medium text-emerald-500';
+                        const now = Date.now();
+                        const qrTime = data.session;
+                        const timeDiff = now - qrTime; // difference in milliseconds
+
+                        // QR code is valid for 60 seconds (60000 ms)
+                        if (timeDiff > 60000) { 
+                            scanResultEl.textContent = 'Expired QR Code. Please ask for a new one.';
+                            scanResultEl.className = 'mt-4 text-center font-medium text-orange-500';
+                        } else {
+                            const requestsRef = collection(db, 'artifacts', appId, 'public', 'attendanceRequests');
+                            await addDoc(requestsRef, {
+                                teacherId: data.teacherId,
+                                classId: data.classId,
+                                studentEmail: auth.currentUser.email,
+                                studentName: auth.currentUser.displayName,
+                                timestamp: serverTimestamp(),
+                            });
+                            scanResultEl.textContent = `Success! Attendance request sent.`;
+                            scanResultEl.className = 'mt-4 text-center font-medium text-emerald-500';
+                        }
                     } else {
-                        scanResultEl.textContent = 'Invalid Class QR Code.';
+                        scanResultEl.textContent = 'Invalid Class QR Code data.';
                         scanResultEl.className = 'mt-4 text-center font-medium text-red-500';
                     }
                 } catch (e) {
-                    console.error(e);
-                    scanResultEl.textContent = 'Invalid or expired QR Code.';
+                    console.error("QR Scan Error:", e);
+                    scanResultEl.textContent = 'Invalid QR Code format.';
                     scanResultEl.className = 'mt-4 text-center font-medium text-red-500';
                 }
                 stopScanning();
@@ -3211,4 +3221,3 @@
     </script>
 </body>
 </html>
-
