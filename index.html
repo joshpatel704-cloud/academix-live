@@ -2881,7 +2881,8 @@
                                 scanResultEl.className = 'mt-4 text-center font-medium text-orange-500';
                             } else {
                                 try {
-                                    const requestsRef = collection(db, 'artifacts', appId, 'public', 'attendanceRequests');
+                                    // FIX: Corrected the collection path to include '/data/'
+                                    const requestsRef = collection(db, 'artifacts', appId, 'public', 'data', 'attendanceRequests');
                                     await addDoc(requestsRef, {
                                         teacherId: data.teacherId,
                                         classId: data.classId,
@@ -3274,4 +3275,3 @@
     </script>
 </body>
 </html>
-
