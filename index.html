@@ -2469,7 +2469,7 @@
             function listenToClassAttendance() {
                 if (!currentClassId || !userId) return;
 
-                // --- NEW: Listener for Real-time Attendance Requests ---
+                // --- Listener for Real-time Attendance Requests ---
                 const requestsRef = collection(db, 'artifacts', appId, 'public', 'data', 'attendanceRequests');
                 const qRequests = query(requestsRef, where("teacherId", "==", userId), where("classId", "==", currentClassId));
 
@@ -2487,14 +2487,28 @@
                             const studentId = studentDoc.id;
                             const today = new Date().toISOString().split('T')[0];
 
-                            // Add to attendance subcollection
+                             // Prevent duplicate entries for the same student on the same day
                             const attendanceRef = collection(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId, 'attendance');
-                            await addDoc(attendanceRef, {
-                                date: today,
-                                studentId: studentId,
-                                studentName: studentDoc.data().name,
-                                status: 'Present',
-                                timestamp: serverTimestamp()
+                            const qAttendance = query(attendanceRef, where("date", "==", today), where("studentId", "==", studentId));
+                            const attendanceSnap = await getDocs(qAttendance);
+
+                            if (attendanceSnap.empty) { // Only add if not already marked present
+                                await addDoc(attendanceRef, {
+                                    date: today,
+                                    studentId: studentId,
+                                    studentName: studentDoc.data().name,
+                                    status: 'Present',
+                                    timestamp: serverTimestamp()
+                                });
+                            }
+                        } else {
+                            // Notify teacher if student is not found in their class list
+                            console.warn(`Attendance request from ${request.studentEmail} but they were not found in class ${currentClassId}.`);
+                            const notificationsRef = collection(db, 'artifacts', appId, 'users', userId, 'notifications');
+                            await addDoc(notificationsRef, {
+                                message: `An attendance scan was received from ${request.studentName} (${request.studentEmail}), but they are not in your student list for this class.`,
+                                read: false,
+                                createdAt: serverTimestamp()
                             });
                         }
 
@@ -2503,7 +2517,6 @@
                     }
                 });
                 unsubscribeListeners.push(unsubRequests);
-                // --- END NEW ---
 
                 const studentsRef = collection(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId, 'students');
                 const qStudents = query(studentsRef, where("deleted", "!=", true));
@@ -2951,7 +2964,6 @@
                 const onScanSuccess = async (decodedText, decodedResult) => {
                     console.log("--- New QR Scan ---");
                     console.log("Raw Decoded Text:", decodedText);
-                    console.log("Full Decoded Result Object:", decodedResult);
 
                     scanResultEl.className = 'mt-4 text-center font-medium text-blue-500';
                     scanResultEl.textContent = 'Processing QR Code...';
@@ -2970,8 +2982,19 @@
                                 scanResultEl.textContent = 'Expired QR Code. Please ask for a new one.';
                                 scanResultEl.className = 'mt-4 text-center font-medium text-orange-500';
                             } else {
+                                 // --- NEW ENROLLMENT CHECK ---
+                                scanResultEl.textContent = 'Verifying enrollment...';
+                                const enrollmentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'studentEnrollments');
+                                const q = query(enrollmentsRef, where("studentEmail", "==", auth.currentUser.email), where("classId", "==", data.classId));
+                                const enrollmentSnap = await getDocs(q);
+
+                                if (enrollmentSnap.empty) {
+                                    scanResultEl.textContent = "You are not enrolled in this class. Please contact your teacher.";
+                                    scanResultEl.className = 'mt-4 text-center font-medium text-red-500';
+                                    return; // Stop execution
+                                }
+                                // --- END ENROLLMENT CHECK ---
                                 try {
-                                    // FIX: Corrected the collection path to include '/data/'
                                     const requestsRef = collection(db, 'artifacts', appId, 'public', 'data', 'attendanceRequests');
                                     await addDoc(requestsRef, {
                                         teacherId: data.teacherId,
