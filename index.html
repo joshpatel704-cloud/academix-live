@@ -673,9 +673,6 @@
                                 <button id="demo-mark-attendance-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold rounded-lg border border-dashed border-emerald-500 text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/50 transition-all mt-2">
                                     <i data-lucide="test-tube-2"></i> Mark Me Present (Demo)
                                 </button>
-                                <button id="test-db-write-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold rounded-lg border border-dashed border-yellow-500 text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-900/50 transition-all mt-2">
-                                    <i data-lucide="database"></i> Test Database Write
-                                </button>
                                 <div id="qr-reader" class="mt-4 w-full"></div>
                                 <div id="scan-result" class="mt-4 text-center font-medium"></div>
                             </div>
@@ -2933,38 +2930,6 @@
                         scanResultEl.textContent = 'Success! Attendance marked for demo class.';
                         if (isScanning) {
                             stopScanning();
-                        }
-                    });
-                }
-
-                const testDbWriteBtn = document.getElementById('test-db-write-btn');
-                if (testDbWriteBtn) {
-                    testDbWriteBtn.addEventListener('click', async () => {
-                        if (!auth.currentUser) {
-                            scanResultEl.textContent = 'You are not logged in.';
-                            scanResultEl.className = 'mt-4 text-center font-medium text-red-500';
-                            return;
-                        }
-
-                        scanResultEl.textContent = 'Attempting to write to database...';
-                        scanResultEl.className = 'mt-4 text-center font-medium text-blue-500';
-
-                        try {
-                            const requestsRef = collection(db, 'artifacts', appId, 'public', 'attendanceRequests');
-                            await addDoc(requestsRef, {
-                                test: true,
-                                userId: auth.currentUser.uid,
-                                email: auth.currentUser.email,
-                                timestamp: serverTimestamp()
-                            });
-
-                            scanResultEl.textContent = 'SUCCESS: Database write was allowed!';
-                            scanResultEl.className = 'mt-4 text-center font-medium text-emerald-500';
-
-                        } catch (error) {
-                            console.error("DATABASE WRITE TEST FAILED:", error);
-                            scanResultEl.textContent = `FAILED: ${error.message}`;
-                            scanResultEl.className = 'mt-4 text-center font-medium text-red-500';
                         }
                     });
                 }
