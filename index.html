@@ -2272,36 +2272,18 @@
                     listenToClassStudents();
                 } else if (viewType === 'view-attendance') {
                     content += `
-                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            <div class="lg:col-span-2 p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md">
-                                <div class="flex justify-between items-center mb-4">
-                                    <h3 class="font-semibold">Manual Attendance</h3>
-                                    <div class="flex gap-2">
-                                        <button id="export-class-csv" class="p-2 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600"><i data-lucide="download"></i> CSV</button>
-                                        <button id="export-class-pdf" class="p-2 rounded-lg bg-red-500 text-white hover:bg-red-600"><i data-lucide="download"></i> PDF</button>
-                                    </div>
-                                </div>
-                                <p class="text-sm text-slate-500 mb-4">Date: ${new Date().toLocaleDateString()}</p>
-                                <div id="manual-attendance-list" class="space-y-3 max-h-96 overflow-y-auto"></div>
+                       <div class="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md">
+                            <div class="flex flex-col md:flex-row justify-between items-center mb-4">
+                                <h3 class="font-semibold text-lg mb-4 md:mb-0">Attendance Session</h3>
+                                <div id="session-controls" class="flex items-center gap-3"></div>
                             </div>
-                             <div class="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md text-center">
-                                <h3 class="font-semibold mb-4">Live Attendance Session</h3>
-                                <button id="start-class-attendance-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700"><i data-lucide="qr-code"></i> Start Attendance</button>
-                                <p class="text-xs text-slate-400 mt-2">Generates a QR code for students to scan.</p>
-                                <div class="mt-6">
-                                    <h4 class="font-semibold">Today's Report</h4>
-                                    <p class="text-4xl font-bold my-2" id="class-attendance-percentage">0%</p>
-                                    <p class="text-sm text-slate-500" id="class-attendance-ratio">0/0 Students Present</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="mt-6 p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md">
-                            <h3 class="font-semibold mb-4">Per-Student Report</h3>
-                            <div id="student-attendance-reports"></div>
-                        </div>
+                            <div id="active-session-info" class="hidden p-4 mb-4 rounded-lg bg-blue-50 dark:bg-blue-900/50 border border-blue-200 dark:border-blue-800"></div>
+                            <h4 class="font-semibold mt-6 mb-2">Today's Sessions</h4>
+                            <div id="session-list-container" class="space-y-4"></div>
+                       </div>
                     `;
                     detailView.innerHTML = content;
-                    listenToClassAttendance();
+                    setupSessionAttendanceView();
                 }
                 
                 lucide.createIcons();
@@ -2311,9 +2293,6 @@
                     addStudentForm.reset();
                     document.getElementById('add-student-modal').classList.remove('hidden');
                 });
-                document.getElementById('start-class-attendance-btn')?.addEventListener('click', startClassAttendanceSession);
-                document.getElementById('export-class-csv')?.addEventListener('click', exportClassAttendanceCSV);
-                document.getElementById('export-class-pdf')?.addEventListener('click', exportClassAttendancePDF);
             }
 
             const addStudentForm = document.getElementById('add-student-form');
@@ -2466,10 +2445,111 @@
                 document.getElementById('qr-code-modal').classList.remove('hidden');
             }
 
-            function listenToClassAttendance() {
-                if (!currentClassId || !userId) return;
+            // --- SESSION-BASED ATTENDANCE ---
+            function setupSessionAttendanceView() {
+                listenToAttendanceRequests();
 
-                // --- Listener for Real-time Attendance Requests ---
+                const sessionsRef = collection(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId, 'sessions');
+                const today = new Date().toISOString().split('T')[0];
+                const qSessions = query(sessionsRef, where("date", "==", today), orderBy('startTime', 'desc'));
+
+                const unsub = onSnapshot(qSessions, async (sessionsSnap) => {
+                    const sessions = sessionsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    const activeSession = sessions.find(s => s.status === 'active');
+                    
+                    renderSessionControls(activeSession);
+                    
+                    const attendanceRef = collection(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId, 'attendance');
+                    const qAttendance = query(attendanceRef, where("date", "==", today));
+                    const attendanceSnap = await getDocs(qAttendance);
+                    const allAttendance = attendanceSnap.docs.map(d => d.data());
+                    
+                    renderSessionList(sessions, allAttendance);
+                });
+                unsubscribeListeners.push(unsub);
+            }
+
+            function renderSessionControls(activeSession) {
+                const controlsContainer = document.getElementById('session-controls');
+                const activeInfoContainer = document.getElementById('active-session-info');
+
+                if (activeSession) {
+                    controlsContainer.innerHTML = `
+                        <button id="generate-qr-btn" class="flex items-center gap-2 py-2 px-4 text-sm font-semibold rounded-lg bg-emerald-500 text-white hover:bg-emerald-600"><i data-lucide="qr-code"></i> Generate QR</button>
+                        <button id="end-session-btn" class="flex items-center gap-2 py-2 px-4 text-sm font-semibold rounded-lg bg-red-500 text-white hover:bg-red-600"><i data-lucide="stop-circle"></i> End Session</button>
+                    `;
+                    const startTime = activeSession.startTime.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    activeInfoContainer.innerHTML = `Session active since <strong>${startTime}</strong>. Generate a QR code for students to scan.`;
+                    activeInfoContainer.classList.remove('hidden');
+
+                    document.getElementById('generate-qr-btn').onclick = () => generateSessionQR(activeSession.id);
+                    document.getElementById('end-session-btn').onclick = () => endCurrentSession(activeSession.id);
+                } else {
+                    controlsContainer.innerHTML = `
+                        <button id="start-session-btn" class="flex items-center gap-2 py-2 px-4 text-sm font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700"><i data-lucide="play-circle"></i> Start New Session</button>
+                    `;
+                    activeInfoContainer.classList.add('hidden');
+                    document.getElementById('start-session-btn').onclick = startNewSession;
+                }
+                lucide.createIcons();
+            }
+
+            function renderSessionList(sessions, allAttendance) {
+                const container = document.getElementById('session-list-container');
+                if (sessions.length === 0) {
+                    container.innerHTML = '<p class="text-slate-500 dark:text-slate-400 text-center py-4">No sessions started for today.</p>';
+                    return;
+                }
+
+                container.innerHTML = sessions.map(session => {
+                    const sessionAttendance = allAttendance.filter(a => a.sessionId === session.id);
+                    const startTime = session.startTime.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    const endTime = session.endTime ? session.endTime.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Active';
+
+                    return `
+                        <div class="p-4 border rounded-lg dark:border-slate-700">
+                            <div class="flex justify-between items-center">
+                                <h5 class="font-semibold">Session: ${startTime} - ${endTime}</h5>
+                                <span class="px-2 py-1 text-xs font-medium rounded-full ${session.status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}">${session.status}</span>
+                            </div>
+                            <p class="text-sm mt-2 text-slate-500"><strong>${sessionAttendance.length}</strong> students present:</p>
+                            <ul class="text-sm mt-2 space-y-1 pl-4 list-disc list-inside">
+                                ${sessionAttendance.map(a => `<li>${a.studentName}</li>`).join('') || '<li class="list-none text-slate-400">No attendance recorded for this session.</li>'}
+                            </ul>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            async function startNewSession() {
+                const sessionsRef = collection(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId, 'sessions');
+                await addDoc(sessionsRef, {
+                    startTime: serverTimestamp(),
+                    endTime: null,
+                    status: 'active',
+                    date: new Date().toISOString().split('T')[0]
+                });
+            }
+
+            async function endCurrentSession(sessionId) {
+                const sessionRef = doc(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId, 'sessions', sessionId);
+                await updateDoc(sessionRef, {
+                    status: 'ended',
+                    endTime: serverTimestamp()
+                });
+            }
+
+            function generateSessionQR(sessionId) {
+                const sessionData = JSON.stringify({ classId: currentClassId, teacherId: userId, sessionId: sessionId, session: Date.now() });
+                const qrContainer = document.getElementById('qr-code-container');
+                qrContainer.innerHTML = '';
+                new QRCode(qrContainer, { text: sessionData, width: 200, height: 200 });
+                document.getElementById('qr-modal-title').textContent = 'Live Session QR Code';
+                document.getElementById('qr-modal-subtitle').textContent = 'This QR code is for the current active session.';
+                document.getElementById('qr-code-modal').classList.remove('hidden');
+            }
+            
+            function listenToAttendanceRequests() {
                 const requestsRef = collection(db, 'artifacts', appId, 'public', 'data', 'attendanceRequests');
                 const qRequests = query(requestsRef, where("teacherId", "==", userId), where("classId", "==", currentClassId));
 
@@ -2477,7 +2557,6 @@
                     for (const reqDoc of snapshot.docs) {
                         const request = reqDoc.data();
                         
-                        // Find the student in this class by email
                         const studentsRef = collection(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId, 'students');
                         const qStudent = query(studentsRef, where("email", "==", request.studentEmail), where("deleted", "!=", true));
                         const studentSnap = await getDocs(qStudent);
@@ -2485,16 +2564,15 @@
                         if (!studentSnap.empty) {
                             const studentDoc = studentSnap.docs[0];
                             const studentId = studentDoc.id;
-                            const today = new Date().toISOString().split('T')[0];
-
-                             // Prevent duplicate entries for the same student on the same day
+                            
                             const attendanceRef = collection(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId, 'attendance');
-                            const qAttendance = query(attendanceRef, where("date", "==", today), where("studentId", "==", studentId));
+                            const qAttendance = query(attendanceRef, where("sessionId", "==", request.sessionId), where("studentId", "==", studentId));
                             const attendanceSnap = await getDocs(qAttendance);
 
-                            if (attendanceSnap.empty) { // Only add if not already marked present
+                            if (attendanceSnap.empty) {
                                 await addDoc(attendanceRef, {
-                                    date: today,
+                                    date: new Date().toISOString().split('T')[0],
+                                    sessionId: request.sessionId,
                                     studentId: studentId,
                                     studentName: studentDoc.data().name,
                                     status: 'Present',
@@ -2502,87 +2580,20 @@
                                 });
                             }
                         } else {
-                            // Notify teacher if student is not found in their class list
                             console.warn(`Attendance request from ${request.studentEmail} but they were not found in class ${currentClassId}.`);
-                            const notificationsRef = collection(db, 'artifacts', appId, 'users', userId, 'notifications');
+                             const notificationsRef = collection(db, 'artifacts', appId, 'users', userId, 'notifications');
                             await addDoc(notificationsRef, {
                                 message: `An attendance scan was received from ${request.studentName} (${request.studentEmail}), but they are not in your student list for this class.`,
                                 read: false,
                                 createdAt: serverTimestamp()
                             });
                         }
-
-                        // Delete the processed request
                         await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'attendanceRequests', reqDoc.id));
                     }
                 });
                 unsubscribeListeners.push(unsubRequests);
-
-                const studentsRef = collection(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId, 'students');
-                const qStudents = query(studentsRef, where("deleted", "!=", true));
-
-                const unsubStudents = onSnapshot(qStudents, async (studentsSnap) => {
-                    const studentList = studentsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    const attendanceRef = collection(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId, 'attendance');
-                    const today = new Date().toISOString().split('T')[0];
-                    const qAttendance = query(attendanceRef, where("date", "==", today));
-
-                    const unsubAttendance = onSnapshot(qAttendance, (attendanceSnap) => {
-                        const presentStudents = new Set(attendanceSnap.docs.map(doc => doc.data().studentId));
-                        const manualList = document.getElementById('manual-attendance-list');
-                        
-                        if (studentList.length === 0) {
-                            manualList.innerHTML = `<p class="text-slate-500 dark:text-slate-400 text-center">No students in this class.</p>`;
-                        } else {
-                            manualList.innerHTML = studentList.map(student => {
-                                const isPresent = presentStudents.has(student.id);
-                                return `
-                                    <div class="flex items-center justify-between p-3 rounded-lg ${isPresent ? 'bg-emerald-50 dark:bg-emerald-900/30' : 'bg-slate-50 dark:bg-slate-700/30'}">
-                                        <p class="font-medium">${student.name} (${student.roll})</p>
-                                        <button data-student-id="${student.id}" data-student-name="${student.name}" class="mark-manual-btn text-sm font-semibold py-1 px-3 rounded-md ${isPresent ? 'bg-red-500 text-white' : 'bg-emerald-500 text-white'}">
-                                            ${isPresent ? 'Mark Absent' : 'Mark Present'}
-                                        </button>
-                                    </div>
-                                `;
-                            }).join('');
-                        }
-
-                        // Update Today's Report
-                        const total = studentList.length;
-                        const presentCount = presentStudents.size;
-                        const percentage = total > 0 ? ((presentCount / total) * 100).toFixed(0) : 0;
-                        document.getElementById('class-attendance-percentage').textContent = `${percentage}%`;
-                        document.getElementById('class-attendance-ratio').textContent = `${presentCount}/${total} Students Present`;
-                    });
-                    unsubscribeListeners.push(unsubAttendance);
-                });
-                unsubscribeListeners.push(unsubStudents);
             }
-
-            document.getElementById('classroom-detail-view').addEventListener('click', async (e) => {
-                const markBtn = e.target.closest('.mark-manual-btn');
-                if (markBtn) {
-                    const studentId = markBtn.dataset.studentId;
-                    const studentName = markBtn.dataset.studentName;
-                    const today = new Date().toISOString().split('T')[0];
-                    const attendanceRef = collection(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId, 'attendance');
-                    
-                    const q = query(attendanceRef, where("date", "==", today), where("studentId", "==", studentId));
-                    const snap = await getDocs(q);
-
-                    if (snap.empty) { // If not present, mark as present
-                        await addDoc(attendanceRef, { date: today, studentId: studentId, studentName: studentName, status: 'Present', timestamp: serverTimestamp() });
-                    } else { // If present, mark as absent (delete record)
-                        snap.forEach(async (doc) => {
-                            await deleteDoc(doc.ref);
-                        });
-                    }
-                }
-            });
             
-            async function exportClassAttendanceCSV() { /* ... */ }
-            async function exportClassAttendancePDF() { /* ... */ }
-
             // --- Student Dashboard View (for Teacher) ---
             async function showStudentDashboard(studentId, studentName) {
                 document.getElementById('student-list-container').classList.add('hidden');
@@ -2973,7 +2984,7 @@
                         const data = JSON.parse(decodedText);
                         console.log("Successfully Parsed JSON:", data);
                         
-                        if (data.classId && data.teacherId && data.session) {
+                        if (data.classId && data.teacherId && data.sessionId && data.session) {
                             const now = Date.now();
                             const qrTime = data.session;
                             const timeDiff = now - qrTime;
@@ -2982,7 +2993,7 @@
                                 scanResultEl.textContent = 'Expired QR Code. Please ask for a new one.';
                                 scanResultEl.className = 'mt-4 text-center font-medium text-orange-500';
                             } else {
-                                 // --- NEW ENROLLMENT CHECK ---
+                                 // --- ENROLLMENT CHECK ---
                                 scanResultEl.textContent = 'Verifying enrollment...';
                                 const enrollmentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'studentEnrollments');
                                 const q = query(enrollmentsRef, where("studentEmail", "==", auth.currentUser.email), where("classId", "==", data.classId));
@@ -2991,7 +3002,7 @@
                                 if (enrollmentSnap.empty) {
                                     scanResultEl.textContent = "You are not enrolled in this class. Please contact your teacher.";
                                     scanResultEl.className = 'mt-4 text-center font-medium text-red-500';
-                                    return; // Stop execution
+                                    return; 
                                 }
                                 // --- END ENROLLMENT CHECK ---
                                 try {
@@ -2999,6 +3010,7 @@
                                     await addDoc(requestsRef, {
                                         teacherId: data.teacherId,
                                         classId: data.classId,
+                                        sessionId: data.sessionId,
                                         studentEmail: auth.currentUser.email,
                                         studentName: auth.currentUser.displayName,
                                         timestamp: serverTimestamp(),
