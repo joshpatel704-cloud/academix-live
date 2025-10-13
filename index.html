@@ -673,6 +673,9 @@
                                 <button id="demo-mark-attendance-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold rounded-lg border border-dashed border-emerald-500 text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/50 transition-all mt-2">
                                     <i data-lucide="test-tube-2"></i> Mark Me Present (Demo)
                                 </button>
+                                <button id="test-db-write-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold rounded-lg border border-dashed border-yellow-500 text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-900/50 transition-all mt-2">
+                                    <i data-lucide="database"></i> Test Database Write
+                                </button>
                                 <div id="qr-reader" class="mt-4 w-full"></div>
                                 <div id="scan-result" class="mt-4 text-center font-medium"></div>
                             </div>
@@ -1167,6 +1170,8 @@
             let unsubscribeListeners = []; // To store Firestore listeners
             let charts = {};
             let searchDebounceTimeout;
+            let qrCodeScanner;
+            let isScanning = false;
 
             const loginPage = document.getElementById('login-page');
             const app = document.getElementById('app');
@@ -1424,6 +1429,15 @@
             };
             const allViews = document.querySelectorAll('#main-content > div');
             const switchView = (viewId) => {
+                if (isScanning && qrCodeScanner && typeof qrCodeScanner.stop === 'function') {
+                    qrCodeScanner.stop().then(() => {
+                        isScanning = false;
+                    }).catch(err => {
+                        console.warn("Could not stop scanner on view change. It might have already been stopped.", err);
+                        isScanning = false; // Reset state regardless
+                    });
+                }
+
                 allViews.forEach(v => v.classList.add('hidden'));
                 document.getElementById(`view-${viewId}`)?.classList.remove('hidden');
                 document.querySelectorAll('.nav-link').forEach(l => {
@@ -1944,7 +1958,8 @@
                     document.getElementById('admin-global-attendance-view').classList.add('hidden');
                     generateStudentIdQRCode();
                     setupStudentDetailsView();
-                    displayStudentClasses(); 
+                    displayStudentClasses();
+                    initializeStudentScanner(); 
                 } else if (currentUserRole === 'admin') {
                     document.getElementById('admin-global-attendance-view').classList.remove('hidden');
                     document.getElementById('student-attendance-view').classList.add('hidden');
@@ -2822,87 +2837,138 @@
                 qrContainer.innerHTML = '';
                 new QRCode(qrContainer, { text: JSON.stringify({ studentUserId: auth.currentUser.uid }), width: 180, height: 180 });
             }
-            const qrCodeScanner = new Html5Qrcode("qr-reader");
-            const startScanBtn = document.getElementById('start-scan-btn');
-            const scanResultEl = document.getElementById('scan-result');
-            let isScanning = false;
 
-            // --- New Demo Button Logic ---
-            const demoBtn = document.getElementById('demo-mark-attendance-btn');
-            if (demoBtn) {
-                demoBtn.addEventListener('click', () => {
-                    scanResultEl.className = 'mt-4 text-center font-medium text-emerald-500';
-                    scanResultEl.textContent = 'Success! Attendance marked for demo class.';
-                    // Optionally stop scanning if it's active
-                    if (isScanning) {
-                        stopScanning();
+            function initializeStudentScanner() {
+                const startScanBtn = document.getElementById('start-scan-btn');
+                if (!startScanBtn || startScanBtn.dataset.listener) return;
+                startScanBtn.dataset.listener = 'true';
+
+                qrCodeScanner = new Html5Qrcode("qr-reader");
+                const scanResultEl = document.getElementById('scan-result');
+
+                const stopScanning = () => { 
+                    if(isScanning) { 
+                        qrCodeScanner.stop().then(() => { 
+                            isScanning = false; 
+                            startScanBtn.textContent = 'Scan Attendance QR Code'; 
+                            startScanBtn.classList.replace('bg-red-600', 'bg-blue-600'); 
+                        }).catch(err => {
+                            console.error("Error stopping scanner", err);
+                            isScanning = false;
+                            startScanBtn.textContent = 'Scan Attendance QR Code';
+                            startScanBtn.classList.replace('bg-red-600', 'bg-blue-600');
+                        }); 
                     }
-                });
-            }
-            // --- End of New Demo Button Logic ---
+                };
 
-            const onScanSuccess = async (decodedText, decodedResult) => {
-                console.log("--- New QR Scan ---");
-                console.log("Raw Decoded Text:", decodedText);
-                console.log("Full Decoded Result Object:", decodedResult);
+                const onScanSuccess = async (decodedText, decodedResult) => {
+                    console.log("--- New QR Scan ---");
+                    console.log("Raw Decoded Text:", decodedText);
+                    console.log("Full Decoded Result Object:", decodedResult);
 
-                scanResultEl.className = 'mt-4 text-center font-medium text-blue-500';
-                scanResultEl.textContent = 'Processing QR Code...';
-                stopScanning();
+                    scanResultEl.className = 'mt-4 text-center font-medium text-blue-500';
+                    scanResultEl.textContent = 'Processing QR Code...';
+                    stopScanning();
 
-                try {
-                    const data = JSON.parse(decodedText);
-                    console.log("Successfully Parsed JSON:", data);
-                    
-                    // Check if it's a valid class attendance QR code
-                    if (data.classId && data.teacherId && data.session) {
-                        const now = Date.now();
-                        const qrTime = data.session;
-                        const timeDiff = now - qrTime; // difference in milliseconds
+                    try {
+                        const data = JSON.parse(decodedText);
+                        console.log("Successfully Parsed JSON:", data);
+                        
+                        if (data.classId && data.teacherId && data.session) {
+                            const now = Date.now();
+                            const qrTime = data.session;
+                            const timeDiff = now - qrTime;
 
-                        // QR code is valid for 60 seconds (60000 ms)
-                        if (timeDiff > 60000) { 
-                            scanResultEl.textContent = 'Expired QR Code. Please ask for a new one.';
-                            scanResultEl.className = 'mt-4 text-center font-medium text-orange-500';
-                        } else {
-                            try {
-                                const requestsRef = collection(db, 'artifacts', appId, 'public', 'attendanceRequests');
-                                await addDoc(requestsRef, {
-                                    teacherId: data.teacherId,
-                                    classId: data.classId,
-                                    studentEmail: auth.currentUser.email,
-                                    studentName: auth.currentUser.displayName,
-                                    timestamp: serverTimestamp(),
-                                });
-                                scanResultEl.textContent = `Success! Attendance request sent.`;
-                                scanResultEl.className = 'mt-4 text-center font-medium text-emerald-500';
-                            } catch (dbError) {
-                                console.error("Firestore Error on attendance request:", dbError);
-                                scanResultEl.textContent = 'Error sending request. Check connection and try again.';
-                                scanResultEl.className = 'mt-4 text-center font-medium text-red-500';
+                            if (timeDiff > 60000) { 
+                                scanResultEl.textContent = 'Expired QR Code. Please ask for a new one.';
+                                scanResultEl.className = 'mt-4 text-center font-medium text-orange-500';
+                            } else {
+                                try {
+                                    const requestsRef = collection(db, 'artifacts', appId, 'public', 'attendanceRequests');
+                                    await addDoc(requestsRef, {
+                                        teacherId: data.teacherId,
+                                        classId: data.classId,
+                                        studentEmail: auth.currentUser.email,
+                                        studentName: auth.currentUser.displayName,
+                                        timestamp: serverTimestamp(),
+                                    });
+                                    scanResultEl.textContent = `Success! Attendance request sent.`;
+                                    scanResultEl.className = 'mt-4 text-center font-medium text-emerald-500';
+                                } catch (dbError) {
+                                    console.error("Firestore Error on attendance request:", dbError);
+                                    scanResultEl.textContent = 'Error sending request. Check connection and try again.';
+                                    scanResultEl.className = 'mt-4 text-center font-medium text-red-500';
+                                }
                             }
+                        } 
+                        else if (data.studentUserId) {
+                            scanResultEl.textContent = "This is a student ID. Please scan the class QR code provided by your teacher.";
+                            scanResultEl.className = 'mt-4 text-center font-medium text-orange-500';
                         }
-                    } 
-                    // Check if the user scanned their own student ID
-                    else if (data.studentUserId) {
-                        scanResultEl.textContent = "This is a student ID. Please scan the class QR code provided by your teacher.";
-                        scanResultEl.className = 'mt-4 text-center font-medium text-orange-500';
-                    }
-                    // If it's some other valid JSON, it's still not correct
-                    else {
-                        scanResultEl.textContent = 'This is not a valid attendance QR code.';
+                        else {
+                            scanResultEl.textContent = 'This is not a valid attendance QR code.';
+                            scanResultEl.className = 'mt-4 text-center font-medium text-red-500';
+                        }
+                    } catch (e) {
+                        console.error("QR Scan Error - Failed to parse JSON:", e);
+                        console.error("The raw text that failed to parse was:", decodedText);
+                        scanResultEl.textContent = 'Invalid QR Code format. Please ensure you are scanning the correct code.';
                         scanResultEl.className = 'mt-4 text-center font-medium text-red-500';
                     }
-                } catch (e) {
-                    console.error("QR Scan Error - Failed to parse JSON:", e);
-                    console.error("The raw text that failed to parse was:", decodedText);
-                    scanResultEl.textContent = 'Invalid QR Code format. Please ensure you are scanning the correct code.';
-                    scanResultEl.className = 'mt-4 text-center font-medium text-red-500';
+                };
+
+                const startScanning = () => { 
+                    qrCodeScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } }, onScanSuccess, (errorMessage) => { /* console.log(`QR Code no longer in view.`); */ }); 
+                    isScanning = true; 
+                    startScanBtn.textContent = 'Stop Scanning'; 
+                    startScanBtn.classList.replace('bg-blue-600', 'bg-red-600'); 
+                };
+
+                startScanBtn.addEventListener('click', () => isScanning ? stopScanning() : startScanning());
+
+                const demoBtn = document.getElementById('demo-mark-attendance-btn');
+                if (demoBtn) {
+                    demoBtn.addEventListener('click', () => {
+                        scanResultEl.className = 'mt-4 text-center font-medium text-emerald-500';
+                        scanResultEl.textContent = 'Success! Attendance marked for demo class.';
+                        if (isScanning) {
+                            stopScanning();
+                        }
+                    });
                 }
-            };
-            const startScanning = () => { qrCodeScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } }, onScanSuccess, (errorMessage) => { console.log(`QR Code no longer in view.`); }); isScanning = true; startScanBtn.textContent = 'Stop Scanning'; startScanBtn.classList.replace('bg-blue-600', 'bg-blue-800'); };
-            const stopScanning = () => { if(isScanning) { qrCodeScanner.stop().then(() => { isScanning = false; startScanBtn.textContent = 'Scan Attendance QR Code'; startScanBtn.classList.replace('bg-blue-800', 'bg-blue-600'); }).catch(err => console.error("Error stopping scanner", err)); }};
-            startScanBtn.addEventListener('click', () => isScanning ? stopScanning() : startScanning());
+
+                const testDbWriteBtn = document.getElementById('test-db-write-btn');
+                if (testDbWriteBtn) {
+                    testDbWriteBtn.addEventListener('click', async () => {
+                        if (!auth.currentUser) {
+                            scanResultEl.textContent = 'You are not logged in.';
+                            scanResultEl.className = 'mt-4 text-center font-medium text-red-500';
+                            return;
+                        }
+
+                        scanResultEl.textContent = 'Attempting to write to database...';
+                        scanResultEl.className = 'mt-4 text-center font-medium text-blue-500';
+
+                        try {
+                            const requestsRef = collection(db, 'artifacts', appId, 'public', 'attendanceRequests');
+                            await addDoc(requestsRef, {
+                                test: true,
+                                userId: auth.currentUser.uid,
+                                email: auth.currentUser.email,
+                                timestamp: serverTimestamp()
+                            });
+
+                            scanResultEl.textContent = 'SUCCESS: Database write was allowed!';
+                            scanResultEl.className = 'mt-4 text-center font-medium text-emerald-500';
+
+                        } catch (error) {
+                            console.error("DATABASE WRITE TEST FAILED:", error);
+                            scanResultEl.textContent = `FAILED: ${error.message}`;
+                            scanResultEl.className = 'mt-4 text-center font-medium text-red-500';
+                        }
+                    });
+                }
+            }
             
             // --- CLASS DETAILS MODAL & CALENDAR ---
             let currentCalendarDate = new Date();
