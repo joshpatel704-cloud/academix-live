@@ -2467,13 +2467,103 @@
             }
 
             function listenToClassAttendance() {
-                // ... same as before
+                if (!currentClassId || !userId) return;
+
+                // --- NEW: Listener for Real-time Attendance Requests ---
+                const requestsRef = collection(db, 'artifacts', appId, 'public', 'data', 'attendanceRequests');
+                const qRequests = query(requestsRef, where("teacherId", "==", userId), where("classId", "==", currentClassId));
+
+                const unsubRequests = onSnapshot(qRequests, async (snapshot) => {
+                    for (const reqDoc of snapshot.docs) {
+                        const request = reqDoc.data();
+                        
+                        // Find the student in this class by email
+                        const studentsRef = collection(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId, 'students');
+                        const qStudent = query(studentsRef, where("email", "==", request.studentEmail), where("deleted", "!=", true));
+                        const studentSnap = await getDocs(qStudent);
+
+                        if (!studentSnap.empty) {
+                            const studentDoc = studentSnap.docs[0];
+                            const studentId = studentDoc.id;
+                            const today = new Date().toISOString().split('T')[0];
+
+                            // Add to attendance subcollection
+                            const attendanceRef = collection(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId, 'attendance');
+                            await addDoc(attendanceRef, {
+                                date: today,
+                                studentId: studentId,
+                                studentName: studentDoc.data().name,
+                                status: 'Present',
+                                timestamp: serverTimestamp()
+                            });
+                        }
+
+                        // Delete the processed request
+                        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'attendanceRequests', reqDoc.id));
+                    }
+                });
+                unsubscribeListeners.push(unsubRequests);
+                // --- END NEW ---
+
+                const studentsRef = collection(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId, 'students');
+                const qStudents = query(studentsRef, where("deleted", "!=", true));
+
+                const unsubStudents = onSnapshot(qStudents, async (studentsSnap) => {
+                    const studentList = studentsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    const attendanceRef = collection(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId, 'attendance');
+                    const today = new Date().toISOString().split('T')[0];
+                    const qAttendance = query(attendanceRef, where("date", "==", today));
+
+                    const unsubAttendance = onSnapshot(qAttendance, (attendanceSnap) => {
+                        const presentStudents = new Set(attendanceSnap.docs.map(doc => doc.data().studentId));
+                        const manualList = document.getElementById('manual-attendance-list');
+                        
+                        if (studentList.length === 0) {
+                            manualList.innerHTML = `<p class="text-slate-500 dark:text-slate-400 text-center">No students in this class.</p>`;
+                        } else {
+                            manualList.innerHTML = studentList.map(student => {
+                                const isPresent = presentStudents.has(student.id);
+                                return `
+                                    <div class="flex items-center justify-between p-3 rounded-lg ${isPresent ? 'bg-emerald-50 dark:bg-emerald-900/30' : 'bg-slate-50 dark:bg-slate-700/30'}">
+                                        <p class="font-medium">${student.name} (${student.roll})</p>
+                                        <button data-student-id="${student.id}" data-student-name="${student.name}" class="mark-manual-btn text-sm font-semibold py-1 px-3 rounded-md ${isPresent ? 'bg-red-500 text-white' : 'bg-emerald-500 text-white'}">
+                                            ${isPresent ? 'Mark Absent' : 'Mark Present'}
+                                        </button>
+                                    </div>
+                                `;
+                            }).join('');
+                        }
+
+                        // Update Today's Report
+                        const total = studentList.length;
+                        const presentCount = presentStudents.size;
+                        const percentage = total > 0 ? ((presentCount / total) * 100).toFixed(0) : 0;
+                        document.getElementById('class-attendance-percentage').textContent = `${percentage}%`;
+                        document.getElementById('class-attendance-ratio').textContent = `${presentCount}/${total} Students Present`;
+                    });
+                    unsubscribeListeners.push(unsubAttendance);
+                });
+                unsubscribeListeners.push(unsubStudents);
             }
 
             document.getElementById('classroom-detail-view').addEventListener('click', async (e) => {
                 const markBtn = e.target.closest('.mark-manual-btn');
                 if (markBtn) {
-                    // ... same as before
+                    const studentId = markBtn.dataset.studentId;
+                    const studentName = markBtn.dataset.studentName;
+                    const today = new Date().toISOString().split('T')[0];
+                    const attendanceRef = collection(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId, 'attendance');
+                    
+                    const q = query(attendanceRef, where("date", "==", today), where("studentId", "==", studentId));
+                    const snap = await getDocs(q);
+
+                    if (snap.empty) { // If not present, mark as present
+                        await addDoc(attendanceRef, { date: today, studentId: studentId, studentName: studentName, status: 'Present', timestamp: serverTimestamp() });
+                    } else { // If present, mark as absent (delete record)
+                        snap.forEach(async (doc) => {
+                            await deleteDoc(doc.ref);
+                        });
+                    }
                 }
             });
             
@@ -3275,3 +3365,4 @@
     </script>
 </body>
 </html>
+
