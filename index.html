@@ -2841,62 +2841,66 @@
             }
             // --- End of New Demo Button Logic ---
 
-            const onScanSuccess = async (decodedText) => {
+            const onScanSuccess = async (decodedText, decodedResult) => {
+                console.log("--- New QR Scan ---");
+                console.log("Raw Decoded Text:", decodedText);
+                console.log("Full Decoded Result Object:", decodedResult);
+
                 scanResultEl.className = 'mt-4 text-center font-medium text-blue-500';
                 scanResultEl.textContent = 'Processing QR Code...';
-                stopScanning(); // Stop scanning immediately to prevent multiple submissions
+                stopScanning();
 
-                let data;
                 try {
-                    data = JSON.parse(decodedText);
-                } catch (e) {
-                    console.error("QR Scan Error - Not a valid JSON:", e);
-                    scanResultEl.textContent = 'This is not a valid attendance QR code.';
-                    scanResultEl.className = 'mt-4 text-center font-medium text-red-500';
-                    return; // Exit the function
-                }
+                    const data = JSON.parse(decodedText);
+                    console.log("Successfully Parsed JSON:", data);
+                    
+                    // Check if it's a valid class attendance QR code
+                    if (data.classId && data.teacherId && data.session) {
+                        const now = Date.now();
+                        const qrTime = data.session;
+                        const timeDiff = now - qrTime; // difference in milliseconds
 
-                // Check if it's a valid class attendance QR code
-                if (data.classId && data.teacherId && data.session) {
-                    const now = Date.now();
-                    const qrTime = data.session;
-                    const timeDiff = now - qrTime; // difference in milliseconds
-
-                    // QR code is valid for 60 seconds (60000 ms)
-                    if (timeDiff > 60000) { 
-                        scanResultEl.textContent = 'Expired QR Code. Please ask for a new one.';
-                        scanResultEl.className = 'mt-4 text-center font-medium text-orange-500';
-                    } else {
-                        try {
-                            const requestsRef = collection(db, 'artifacts', appId, 'public', 'attendanceRequests');
-                            await addDoc(requestsRef, {
-                                teacherId: data.teacherId,
-                                classId: data.classId,
-                                studentEmail: auth.currentUser.email,
-                                studentName: auth.currentUser.displayName,
-                                timestamp: serverTimestamp(),
-                            });
-                            scanResultEl.textContent = `Success! Attendance request sent.`;
-                            scanResultEl.className = 'mt-4 text-center font-medium text-emerald-500';
-                        } catch (dbError) {
-                            console.error("Firestore Error on attendance request:", dbError);
-                            scanResultEl.textContent = 'Error sending request. Check connection and try again.';
-                            scanResultEl.className = 'mt-4 text-center font-medium text-red-500';
+                        // QR code is valid for 60 seconds (60000 ms)
+                        if (timeDiff > 60000) { 
+                            scanResultEl.textContent = 'Expired QR Code. Please ask for a new one.';
+                            scanResultEl.className = 'mt-4 text-center font-medium text-orange-500';
+                        } else {
+                            try {
+                                const requestsRef = collection(db, 'artifacts', appId, 'public', 'attendanceRequests');
+                                await addDoc(requestsRef, {
+                                    teacherId: data.teacherId,
+                                    classId: data.classId,
+                                    studentEmail: auth.currentUser.email,
+                                    studentName: auth.currentUser.displayName,
+                                    timestamp: serverTimestamp(),
+                                });
+                                scanResultEl.textContent = `Success! Attendance request sent.`;
+                                scanResultEl.className = 'mt-4 text-center font-medium text-emerald-500';
+                            } catch (dbError) {
+                                console.error("Firestore Error on attendance request:", dbError);
+                                scanResultEl.textContent = 'Error sending request. Check connection and try again.';
+                                scanResultEl.className = 'mt-4 text-center font-medium text-red-500';
+                            }
                         }
+                    } 
+                    // Check if the user scanned their own student ID
+                    else if (data.studentUserId) {
+                        scanResultEl.textContent = "This is a student ID. Please scan the class QR code provided by your teacher.";
+                        scanResultEl.className = 'mt-4 text-center font-medium text-orange-500';
                     }
-                } 
-                // Check if the user scanned their own student ID
-                else if (data.studentUserId) {
-                    scanResultEl.textContent = "This is a student ID. Please scan the class QR code provided by your teacher.";
-                    scanResultEl.className = 'mt-4 text-center font-medium text-orange-500';
-                }
-                // If it's some other valid JSON, it's still not correct
-                else {
-                    scanResultEl.textContent = 'This is not a valid attendance QR code.';
+                    // If it's some other valid JSON, it's still not correct
+                    else {
+                        scanResultEl.textContent = 'This is not a valid attendance QR code.';
+                        scanResultEl.className = 'mt-4 text-center font-medium text-red-500';
+                    }
+                } catch (e) {
+                    console.error("QR Scan Error - Failed to parse JSON:", e);
+                    console.error("The raw text that failed to parse was:", decodedText);
+                    scanResultEl.textContent = 'Invalid QR Code format. Please ensure you are scanning the correct code.';
                     scanResultEl.className = 'mt-4 text-center font-medium text-red-500';
                 }
             };
-            const startScanning = () => { qrCodeScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } }, onScanSuccess, ()=>{}); isScanning = true; startScanBtn.textContent = 'Stop Scanning'; startScanBtn.classList.replace('bg-blue-600', 'bg-blue-800'); };
+            const startScanning = () => { qrCodeScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } }, onScanSuccess, (errorMessage) => { console.log(`QR Code no longer in view.`); }); isScanning = true; startScanBtn.textContent = 'Stop Scanning'; startScanBtn.classList.replace('bg-blue-600', 'bg-blue-800'); };
             const stopScanning = () => { if(isScanning) { qrCodeScanner.stop().then(() => { isScanning = false; startScanBtn.textContent = 'Scan Attendance QR Code'; startScanBtn.classList.replace('bg-blue-800', 'bg-blue-600'); }).catch(err => console.error("Error stopping scanner", err)); }};
             startScanBtn.addEventListener('click', () => isScanning ? stopScanning() : startScanning());
             
