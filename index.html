@@ -2553,46 +2553,70 @@
                 listenToAttendanceRequests(sessionId);
             }
 
-            // --- FIX STARTS HERE ---
-            // This function was missing, causing the QR code generation to fail.
             async function generateSessionQR(sessionId) {
+                console.log("Attempting to generate QR code for session:", sessionId);
+
+                // 1. Check if the QR Code library is loaded
+                if (typeof QRCode === 'undefined') {
+                    console.error("CRITICAL ERROR: QRCode.js library is not loaded. Cannot generate QR code. Check the script tag in the HTML <head>.");
+                    return;
+                }
+                
+                // 2. Check for necessary context variables
                 if (!currentClassId || !userId) {
-                    console.error("Missing class or user context for QR generation.");
+                    console.error("ERROR: Missing class or user context for QR generation. currentClassId:", currentClassId, "userId:", userId);
                     return;
                 }
 
+                // 3. Find all necessary DOM elements for the modal
                 const qrModal = document.getElementById('qr-code-modal');
                 const qrContainer = document.getElementById('qr-code-container');
                 const qrTitle = document.getElementById('qr-modal-title');
                 const qrSubtitle = document.getElementById('qr-modal-subtitle');
 
-                // Clear previous QR code
-                qrContainer.innerHTML = '';
+                if(!qrModal || !qrContainer || !qrTitle || !qrSubtitle){
+                    console.error("CRITICAL UI ERROR: One or more QR modal elements are missing from the DOM. Check the modal's HTML structure.");
+                    return;
+                }
 
-                // Prepare data for QR code, including a timestamp for expiration
-                const qrData = {
-                    teacherId: userId,
-                    classId: currentClassId,
-                    sessionId: sessionId,
-                    session: Date.now() 
-                };
+                try {
+                    // Clear previous QR code
+                    qrContainer.innerHTML = '';
 
-                // Use the QRCode.js library to generate the QR code
-                new QRCode(qrContainer, {
-                    text: JSON.stringify(qrData),
-                    width: 256,
-                    height: 256,
-                    colorDark: "#000000",
-                    colorLight: "#ffffff",
-                    correctLevel: QRCode.CorrectLevel.H
-                });
+                    // Prepare data for QR code, including a timestamp for expiration
+                    const qrData = {
+                        teacherId: userId,
+                        classId: currentClassId,
+                        sessionId: sessionId,
+                        session: Date.now() 
+                    };
+                    
+                    // Use the QRCode.js library to generate the QR code
+                    new QRCode(qrContainer, {
+                        text: JSON.stringify(qrData),
+                        width: 256,
+                        height: 256,
+                        colorDark: "#000000",
+                        colorLight: "#ffffff",
+                        correctLevel: QRCode.CorrectLevel.H
+                    });
 
-                // Update modal content and show it
-                qrTitle.textContent = "Live Attendance QR Code";
-                qrSubtitle.textContent = "Students can scan this code to mark their attendance. It will expire shortly.";
-                qrModal.classList.remove('hidden');
+                    // Update modal content and show it
+                    qrTitle.textContent = "Live Attendance QR Code";
+                    qrSubtitle.textContent = "Students can scan this code. This is a time-sensitive code and will expire in 1 minute.";
+                    qrModal.classList.remove('hidden');
+
+                } catch (error) {
+                    console.error("An error occurred during QR code generation:", error);
+                    // Try to show an error in the modal if possible
+                    if(qrModal && qrSubtitle) {
+                        qrTitle.textContent = "Error";
+                        qrSubtitle.textContent = "Could not generate QR code. See console for details.";
+                        qrContainer.innerHTML = ''; // Clear any partial generation
+                        qrModal.classList.remove('hidden');
+                    }
+                }
             }
-            // --- FIX ENDS HERE ---
 
             function listenToSessionStudents(sessionId) {
                 const studentsRef = collection(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId, 'students');
@@ -3483,3 +3507,4 @@
     </script>
 </body>
 </html>
+
