@@ -2538,17 +2538,23 @@
                         list.innerHTML = `<tr><td colspan="4" class="text-center p-4">No students added yet.</td></tr>`;
                         return;
                     }
-                    list.innerHTML = snap.docs.map(doc => `
+                    list.innerHTML = snap.docs.map(doc => {
+                        const student = doc.data();
+                        return `
                         <tr class="border-b dark:border-slate-700">
-                            <td class="px-6 py-4">${doc.data().name}</td>
-                            <td class="px-6 py-4">${doc.data().roll}</td>
-                            <td class="px-6 py-4">${doc.data().email}</td>
+                            <td class="px-6 py-4">
+                                <a href="#" class="font-medium text-blue-600 dark:text-blue-400 hover:underline view-student-dashboard-btn" data-student-id="${doc.id}" data-student-name="${student.name}">
+                                    ${student.name}
+                                </a>
+                            </td>
+                            <td class="px-6 py-4">${student.roll}</td>
+                            <td class="px-6 py-4">${student.email}</td>
                             <td class="px-6 py-4 flex gap-2">
-                                <button class="view-student-dashboard-btn p-2 text-slate-500 hover:text-blue-500 rounded-md" title="View Dashboard" data-student-id="${doc.id}" data-student-name="${doc.data().name}"><i data-lucide="layout-dashboard"></i></button>
-                                <button class="delete-student-btn p-2 text-slate-500 hover:text-red-500 rounded-md" title="Delete Student" data-id="${doc.id}" data-email="${doc.data().email}"><i data-lucide="trash-2"></i></button>
+                                <button class="view-student-dashboard-btn p-2 text-slate-500 hover:text-blue-500 rounded-md" title="View Dashboard" data-student-id="${doc.id}" data-student-name="${student.name}"><i data-lucide="layout-dashboard"></i></button>
+                                <button class="delete-student-btn p-2 text-slate-500 hover:text-red-500 rounded-md" title="Delete Student" data-id="${doc.id}" data-email="${student.email}"><i data-lucide="trash-2"></i></button>
                             </td>
                         </tr>
-                    `).join('');
+                    `}).join('');
                     lucide.createIcons();
                 });
                 unsubscribeListeners.push(unsub);
@@ -2574,6 +2580,7 @@
                 }
                 const viewDashboardBtn = e.target.closest('.view-student-dashboard-btn');
                 if (viewDashboardBtn) {
+                    e.preventDefault();
                     const studentId = viewDashboardBtn.dataset.studentId;
                     const studentName = viewDashboardBtn.dataset.studentName;
                     showStudentDashboard(studentId, studentName);
@@ -3526,3 +3533,4 @@
     </script>
 </body>
 </html>
+
