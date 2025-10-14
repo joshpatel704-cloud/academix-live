@@ -1905,25 +1905,30 @@
                             const studentAttendanceRecords = [];
 
                             if (enrolledClasses.length > 0) {
-                                const attendancePromises = enrolledClasses.map(async (enrolledClass) => {
+                                const statsPromises = enrolledClasses.map(async (enrolledClass) => {
                                     const classRef = doc(db, 'artifacts', appId, 'users', enrolledClass.teacherId, 'classes', enrolledClass.classId);
+                                    
+                                    // Get total sessions (lectures) for the class
+                                    const sessionsRef = collection(classRef, 'sessions');
+                                    const sessionsSnap = await getDocs(sessionsRef);
+                                    const lecturesInClass = sessionsSnap.size;
+
+                                    // Get student's attendance for the class
                                     const attendanceRef = collection(classRef, 'attendance');
-                                    
-                                    const allAttendanceSnap = await getDocs(attendanceRef);
-                                    const uniqueDays = new Set(allAttendanceSnap.docs.map(d => d.data().date));
-                                    
                                     const studentAttendanceQuery = query(attendanceRef, where("studentId", "==", enrolledClass.studentId));
                                     const studentAttendanceSnap = await getDocs(studentAttendanceQuery);
+                                    const attendedInClass = studentAttendanceSnap.size;
 
+                                    // Collect records for trend chart
                                     studentAttendanceSnap.forEach(doc => studentAttendanceRecords.push(doc.data()));
-                                    
+
                                     return {
-                                        lecturesInClass: uniqueDays.size,
-                                        attendedInClass: studentAttendanceSnap.size
+                                        lecturesInClass: lecturesInClass,
+                                        attendedInClass: attendedInClass
                                     };
                                 });
 
-                                const results = await Promise.all(attendancePromises);
+                                const results = await Promise.all(statsPromises);
                                 results.forEach(res => {
                                     totalLecturesCount += res.lecturesInClass;
                                     totalAttendedCount += res.attendedInClass;
