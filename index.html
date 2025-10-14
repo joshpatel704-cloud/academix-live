@@ -2595,49 +2595,74 @@
                 sessionView.classList.remove('hidden');
                 sessionView.innerHTML = `<div class="text-center p-8"><div class="loader mx-auto"></div><p class="mt-4">Loading session...</p></div>`;
 
-                // Fetch session and classroom data
                 const classRef = doc(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId);
                 const sessionRef = doc(db, classRef.path, 'sessions', sessionId);
-                const [classSnap, sessionSnap] = await Promise.all([getDoc(classRef), getDoc(sessionRef)]);
-                const classroom = classSnap.data();
-                const session = { id: sessionSnap.id, ...sessionSnap.data() };
-                const startTime = session.startTime.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-                // Build the UI
-                sessionView.innerHTML = `
-                     <div class="flex items-center gap-4 mb-6">
-                        <button id="back-to-session-overview" class="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700"><i data-lucide="arrow-left"></i></button>
-                        <div>
-                            <h1 class="text-2xl font-bold">Attendance Session</h1>
-                            <p class="text-slate-500 dark:text-slate-400">${classroom.name} - Started at ${startTime}</p>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <div class="lg:col-span-2 p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md">
-                            <h3 class="font-semibold mb-4">Manual Attendance</h3>
-                            <div id="session-manual-attendance-list" class="space-y-3 max-h-96 overflow-y-auto"></div>
-                        </div>
-                        <div class="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md text-center">
-                            <h3 class="font-semibold mb-4">Live Attendance</h3>
-                             <button id="generate-qr-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"><i data-lucide="qr-code"></i> Generate QR Code</button>
-                             <p class="text-xs text-slate-400 mt-2">Generates a new time-sensitive QR code.</p>
-                             <hr class="my-6 dark:border-slate-700">
-                             <button id="end-session-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold rounded-lg bg-red-600 text-white hover:bg-red-700"><i data-lucide="stop-circle"></i> End Session</button>
-                        </div>
-                    </div>
-                `;
-                lucide.createIcons();
-
-                // Attach Listeners
-                document.getElementById('back-to-session-overview').onclick = () => showClassroomDetailView('view-attendance');
-                document.getElementById('generate-qr-btn').onclick = () => generateSessionQR(sessionId);
-                document.getElementById('end-session-btn').onclick = async () => {
-                    await updateDoc(sessionRef, { status: 'ended', endTime: serverTimestamp() });
-                    showClassroomDetailView('view-attendance');
-                };
                 
-                listenToSessionStudents(sessionId);
+                const classSnap = await getDoc(classRef);
+                if (!classSnap.exists()) return;
+                const classroom = classSnap.data();
+
+                const unsubSession = onSnapshot(sessionRef, (sessionSnap) => {
+                    if (!sessionSnap.exists()) {
+                        showClassroomDetailView('view-attendance');
+                        return;
+                    }
+                    const session = { id: sessionSnap.id, ...sessionSnap.data() };
+                    const startTime = session.startTime?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) || '...';
+                    
+                    if (!sessionView.querySelector('#session-controls')) {
+                        sessionView.innerHTML = `
+                            <div class="flex items-center gap-4 mb-6">
+                                <button id="back-to-session-overview" class="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700"><i data-lucide="arrow-left"></i></button>
+                                <div>
+                                    <h1 class="text-2xl font-bold">Attendance Session</h1>
+                                    <p id="session-subtitle" class="text-slate-500 dark:text-slate-400"></p>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                <div class="lg:col-span-2 p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md">
+                                    <h3 class="font-semibold mb-4">Manual Attendance</h3>
+                                    <div id="session-manual-attendance-list" class="space-y-3 max-h-96 overflow-y-auto pr-2"></div>
+                                </div>
+                                <div id="session-controls" class="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md text-center">
+                                </div>
+                            </div>
+                        `;
+                        document.getElementById('back-to-session-overview').onclick = () => showClassroomDetailView('view-attendance');
+                        listenToSessionStudents(sessionId);
+                    }
+                    
+                    sessionView.querySelector('#session-subtitle').textContent = `${classroom.name} - Started at ${startTime}`;
+                    const controlsContainer = sessionView.querySelector('#session-controls');
+
+                    if (session.status === 'active') {
+                        controlsContainer.innerHTML = `
+                            <h3 class="font-semibold mb-4">Live Attendance</h3>
+                            <button id="generate-qr-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"><i data-lucide="qr-code"></i> Generate QR Code</button>
+                            <p class="text-xs text-slate-400 mt-2">Generates a new time-sensitive QR code.</p>
+                            <hr class="my-6 dark:border-slate-700">
+                            <button id="end-session-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold rounded-lg bg-red-600 text-white hover:bg-red-700"><i data-lucide="stop-circle"></i> End Session</button>
+                        `;
+                        document.getElementById('generate-qr-btn').onclick = () => generateSessionQR(sessionId);
+                        document.getElementById('end-session-btn').onclick = () => updateDoc(sessionRef, { status: 'ended', endTime: serverTimestamp() });
+                    } else { // Session ended
+                        controlsContainer.innerHTML = `
+                            <h3 class="font-semibold mb-4">Session Ended</h3>
+                            <div class="p-4 bg-slate-100 dark:bg-slate-700 rounded-lg text-center">
+                                <i data-lucide="check-circle-2" class="h-10 w-10 mx-auto text-emerald-500"></i>
+                                <p class="mt-2 font-semibold">This session is complete.</p>
+                                <p class="text-xs text-slate-500">Ended at ${session.endTime?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) || '...'}</p>
+                            </div>
+                            <hr class="my-6 dark:border-slate-700">
+                            <button class="w-full flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"><i data-lucide="edit"></i> Manipulate Session</button>
+                            <p class="text-xs text-slate-400 mt-2">You can still manually mark students.</p>
+                        `;
+                    }
+                    lucide.createIcons();
+                });
+                unsubscribeListeners.push(unsubSession);
             }
+
 
             async function generateSessionQR(sessionId) {
                 if (!currentClassId || !userId) {
@@ -2687,7 +2712,8 @@
                      const unsubAttendance = onSnapshot(qAttendance, (attendanceSnap) => {
                         const presentStudents = new Set(attendanceSnap.docs.map(d => d.data().studentId));
                         const list = document.getElementById('session-manual-attendance-list');
-                        
+                        if (!list) return;
+
                         if (studentsSnap.empty) {
                             list.innerHTML = `<p class="text-slate-500 text-center">No students enrolled.</p>`;
                             return;
@@ -2710,7 +2736,7 @@
                 });
                 unsubscribeListeners.push(unsubStudents);
 
-                 document.getElementById('session-manual-attendance-list').addEventListener('click', async (e) => {
+                 document.getElementById('session-manual-attendance-list')?.addEventListener('click', async (e) => {
                     const markBtn = e.target.closest('.mark-session-manual-btn');
                     if (markBtn) {
                         const { studentId, studentName, sessionId } = markBtn.dataset;
