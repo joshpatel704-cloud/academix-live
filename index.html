@@ -1098,6 +1098,21 @@
         </div>
     </div>
 
+    <!-- Delete Session Confirmation Modal -->
+    <div id="delete-session-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-backdrop">
+        <div class="w-full max-w-md p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-lg modal-content">
+            <h2 class="text-xl font-bold mb-4">Confirm Session Deletion</h2>
+            <p class="text-slate-600 dark:text-slate-400">Are you sure you want to delete this session? All associated attendance records will be permanently removed. This action cannot be undone.</p>
+            <div class="mt-6 flex justify-end gap-3">
+                <button type="button" class="modal-close-btn px-4 py-2 text-sm font-medium rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600">Cancel</button>
+                <button id="confirm-delete-session-btn" type="button" class="px-4 py-2 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 flex items-center justify-center">
+                    <span class="loader-small hidden"></span>
+                    <span>Delete Session</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Exit Class Confirmation Modal -->
     <div id="exit-class-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-backdrop">
         <div class="w-full max-w-md p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-lg modal-content">
@@ -1500,6 +1515,54 @@
             setupModal('class-details-modal', null);
             setupModal('exit-class-modal', null);
             setupModal('create-institute-modal', 'create-institute-btn');
+            setupModal('delete-session-modal', null);
+
+            document.getElementById('confirm-delete-session-btn').addEventListener('click', async (e) => {
+                const btn = e.currentTarget;
+                const sessionId = btn.dataset.sessionId;
+                if (!sessionId || !currentClassId || !userId) {
+                    console.error("Missing context for session deletion.");
+                    return;
+                }
+
+                const loader = btn.querySelector('.loader-small');
+                const btnText = btn.querySelector('span:not(.loader-small)');
+                btn.disabled = true;
+                loader.classList.remove('hidden');
+                btnText.textContent = 'Deleting...';
+
+                try {
+                    const batch = writeBatch(db);
+
+                    // 1. Find and delete all attendance records for this session
+                    const attendanceRef = collection(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId, 'attendance');
+                    const q = query(attendanceRef, where("sessionId", "==", sessionId));
+                    const attendanceSnap = await getDocs(q);
+                    attendanceSnap.forEach(doc => {
+                        batch.delete(doc.ref);
+                    });
+
+                    // 2. Delete the session document itself
+                    const sessionRef = doc(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId, 'sessions', sessionId);
+                    batch.delete(sessionRef);
+
+                    // 3. Commit all deletions
+                    await batch.commit();
+
+                    // 4. Close modal and go back
+                    document.getElementById('delete-session-modal').classList.add('hidden');
+                    showClassroomDetailView('view-attendance'); // Go back to the session list
+
+                } catch (error) {
+                    console.error("Error deleting session:", error);
+                    // You might want to show an error to the user here
+                } finally {
+                    // Reset button state
+                    btn.disabled = false;
+                    loader.classList.add('hidden');
+                    btnText.textContent = 'Delete Session';
+                }
+            });
 
 
             // --- HOME VIEW ---
@@ -2645,7 +2708,7 @@
                         `;
                         document.getElementById('generate-qr-btn').onclick = () => generateSessionQR(sessionId);
                         document.getElementById('end-session-btn').onclick = () => updateDoc(sessionRef, { status: 'ended', endTime: serverTimestamp() });
-                    } else if (session.status === 'ended') { // MODIFICATION: Changed to be more explicit and updated button style.
+                    } else if (session.status === 'ended') {
                         controlsContainer.innerHTML = `
                             <h3 class="font-semibold mb-4">Session Ended</h3>
                             <div class="p-4 bg-slate-100 dark:bg-slate-700 rounded-lg text-center">
@@ -2653,10 +2716,18 @@
                                 <p class="mt-2 font-semibold">This session is complete.</p>
                                 <p class="text-xs text-slate-500">Ended at ${session.endTime?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) || '...'}</p>
                             </div>
-                            <hr class="my-6 dark:border-slate-700">
-                            <button class="w-full flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700"><i data-lucide="edit"></i> Manipulate Session</button>
-                            <p class="text-xs text-slate-400 mt-2">You can still manually mark students.</p>
+                            <div class="mt-6 space-y-2">
+                                <button class="w-full flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700"><i data-lucide="edit"></i> Manipulate Session</button>
+                                <button id="delete-session-btn" class="w-full flex items-center justify-center gap-2 py-2 px-4 text-sm font-medium rounded-lg bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/50 dark:text-red-300 dark:hover:bg-red-900"><i data-lucide="trash-2" class="h-4 w-4"></i> Delete Session</button>
+                            </div>
+                            <p class="text-xs text-slate-400 mt-2 text-center">You can still manually mark students.</p>
                         `;
+                        document.getElementById('delete-session-btn').addEventListener('click', () => {
+                            const deleteModal = document.getElementById('delete-session-modal');
+                            const confirmBtn = document.getElementById('confirm-delete-session-btn');
+                            confirmBtn.dataset.sessionId = sessionId;
+                            deleteModal.classList.remove('hidden');
+                        });
                     }
                     lucide.createIcons();
                 });
@@ -3559,3 +3630,4 @@
     </script>
 </body>
 </html>
+
