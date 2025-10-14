@@ -2553,6 +2553,47 @@
                 listenToAttendanceRequests(sessionId);
             }
 
+            // --- FIX STARTS HERE ---
+            // This function was missing, causing the QR code generation to fail.
+            async function generateSessionQR(sessionId) {
+                if (!currentClassId || !userId) {
+                    console.error("Missing class or user context for QR generation.");
+                    return;
+                }
+
+                const qrModal = document.getElementById('qr-code-modal');
+                const qrContainer = document.getElementById('qr-code-container');
+                const qrTitle = document.getElementById('qr-modal-title');
+                const qrSubtitle = document.getElementById('qr-modal-subtitle');
+
+                // Clear previous QR code
+                qrContainer.innerHTML = '';
+
+                // Prepare data for QR code, including a timestamp for expiration
+                const qrData = {
+                    teacherId: userId,
+                    classId: currentClassId,
+                    sessionId: sessionId,
+                    session: Date.now() 
+                };
+
+                // Use the QRCode.js library to generate the QR code
+                new QRCode(qrContainer, {
+                    text: JSON.stringify(qrData),
+                    width: 256,
+                    height: 256,
+                    colorDark: "#000000",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+
+                // Update modal content and show it
+                qrTitle.textContent = "Live Attendance QR Code";
+                qrSubtitle.textContent = "Students can scan this code to mark their attendance. It will expire shortly.";
+                qrModal.classList.remove('hidden');
+            }
+            // --- FIX ENDS HERE ---
+
             function listenToSessionStudents(sessionId) {
                 const studentsRef = collection(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId, 'students');
                 const qStudents = query(studentsRef, where("deleted", "!=", true));
@@ -3442,4 +3483,3 @@
     </script>
 </body>
 </html>
-
