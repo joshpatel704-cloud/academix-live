@@ -2645,7 +2645,7 @@
                         `;
                         document.getElementById('generate-qr-btn').onclick = () => generateSessionQR(sessionId);
                         document.getElementById('end-session-btn').onclick = () => updateDoc(sessionRef, { status: 'ended', endTime: serverTimestamp() });
-                    } else { // Session ended
+                    } else if (session.status === 'ended') { // MODIFICATION: Changed to be more explicit and updated button style.
                         controlsContainer.innerHTML = `
                             <h3 class="font-semibold mb-4">Session Ended</h3>
                             <div class="p-4 bg-slate-100 dark:bg-slate-700 rounded-lg text-center">
@@ -2654,7 +2654,7 @@
                                 <p class="text-xs text-slate-500">Ended at ${session.endTime?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) || '...'}</p>
                             </div>
                             <hr class="my-6 dark:border-slate-700">
-                            <button class="w-full flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"><i data-lucide="edit"></i> Manipulate Session</button>
+                            <button class="w-full flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700"><i data-lucide="edit"></i> Manipulate Session</button>
                             <p class="text-xs text-slate-400 mt-2">You can still manually mark students.</p>
                         `;
                     }
@@ -3559,4 +3559,3 @@
     </script>
 </body>
 </html>
-
