@@ -184,7 +184,7 @@
         /* --- NEW --- Highlight on Hover Effect */
         button, .nav-link, 
         #clubs-container > div, 
-        #classrooms-container > div, 
+        .classroom-card, 
         #institutes-list-container > div,
         .student-class-card,
         #notice-board-container > div,
@@ -194,19 +194,18 @@
 
         button:hover, .nav-link:hover, 
         #clubs-container > div:hover, 
-        #classrooms-container > div:hover, 
+        .classroom-card:hover, 
         #institutes-list-container > div:hover,
         .student-class-card:hover,
         #notice-board-container > div:hover,
         #rankers-list-container > div:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.07);
-            background-color: #f8fafc; /* slate-50 */
         }
         
         .dark button:hover, .dark .nav-link:hover, 
         .dark #clubs-container > div:hover, 
-        .dark #classrooms-container > div:hover, 
+        .dark .classroom-card:hover, 
         .dark #institutes-list-container > div:hover,
         .dark .student-class-card:hover,
         .dark #notice-board-container > div:hover,
@@ -2015,6 +2014,7 @@
                 classroomListView.classList.remove('hidden');
                 classroomDetailView.classList.add('hidden');
                 classroomSessionView.classList.add('hidden');
+                if (charts.classOverview) charts.classOverview.destroy();
                 listenToClassrooms();
             }
             
@@ -2211,14 +2211,13 @@
                     container.innerHTML = snap.docs.map(doc => {
                         const classroom = doc.data();
                         return `
-                            <div class="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md flex flex-col justify-between">
+                            <div data-id="${doc.id}" class="classroom-card cursor-pointer p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md flex flex-col justify-between">
                                 <div>
                                     <h3 class="text-lg font-bold">${classroom.name}</h3>
-                                    <p class="text-sm text-slate-500 dark:text-slate-400">${classroom.subject} - Section ${classroom.section}</p>
+                                    <p class="text-sm text-slate-500 dark:text-slate-400">${classroom.subject} - Section ${classroom.section || 'N/A'}</p>
                                 </div>
-                                <div class="mt-4 flex gap-2">
-                                    <button data-id="${doc.id}" class="manage-students-btn flex-1 py-2 px-3 text-sm font-semibold rounded-lg bg-indigo-100 text-indigo-700 hover:bg-indigo-200">Manage Students</button>
-                                    <button data-id="${doc.id}" class="view-attendance-btn flex-1 py-2 px-3 text-sm font-semibold rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200">Attendance</button>
+                                <div class="mt-4 text-right">
+                                     <span class="text-sm font-semibold text-blue-600 dark:text-blue-400">View Attendance & Sessions &rarr;</span>
                                 </div>
                             </div>
                         `;
@@ -2228,14 +2227,9 @@
             }
             
             document.getElementById('view-classrooms').addEventListener('click', (e) => {
-                const manageBtn = e.target.closest('.manage-students-btn');
-                const attendanceBtn = e.target.closest('.view-attendance-btn');
-                if (manageBtn) {
-                    currentClassId = manageBtn.dataset.id;
-                    showClassroomDetailView('manage-students');
-                }
-                if (attendanceBtn) {
-                    currentClassId = attendanceBtn.dataset.id;
+                const classCard = e.target.closest('.classroom-card');
+                if (classCard) {
+                    currentClassId = classCard.dataset.id;
                     showClassroomDetailView('view-attendance');
                 }
             });
@@ -2250,18 +2244,17 @@
                 const detailView = document.getElementById('classroom-detail-view');
                 detailView.classList.remove('hidden');
 
-                let content = `
-                    <div class="flex items-center gap-4 mb-6">
-                        <button id="back-to-classrooms" class="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700"><i data-lucide="arrow-left"></i></button>
-                        <div>
-                            <h1 class="text-3xl font-bold">${classroom.name}</h1>
-                            <p class="text-slate-500 dark:text-slate-400">${classroom.subject} - Section ${classroom.section}</p>
-                        </div>
-                    </div>
-                `;
-
+                let content = ``;
+                
                 if (viewType === 'manage-students') {
-                    content += `
+                    content = `
+                        <div class="flex items-center gap-4 mb-6">
+                            <button id="back-to-overview-btn" class="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700"><i data-lucide="arrow-left"></i></button>
+                            <div>
+                                <h1 class="text-3xl font-bold">${classroom.name}</h1>
+                                <p class="text-slate-500 dark:text-slate-400">Manage Students</p>
+                            </div>
+                        </div>
                         <div id="student-list-container">
                             <div class="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md">
                                 <div class="flex justify-between items-center mb-4">
@@ -2276,31 +2269,178 @@
                                 </div>
                             </div>
                         </div>
-                        <div id="student-dashboard-content" class="hidden"></div>
+                        <div id="student-dashboard-content" class="hidden mt-6"></div>
                     `;
                     detailView.innerHTML = content;
+                    document.getElementById('back-to-overview-btn').addEventListener('click', () => showClassroomDetailView('view-attendance'));
                     listenToClassStudents();
-                } else if (viewType === 'view-attendance') {
-                    content += `
-                       <div class="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md">
-                            <div class="flex flex-col md:flex-row justify-between items-center mb-4">
-                                <h3 class="font-semibold text-lg mb-4 md:mb-0">Attendance Sessions for Today</h3>
-                                <button id="start-new-session-btn" class="flex items-center gap-2 py-2 px-4 text-sm font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700"><i data-lucide="play-circle"></i> Start New Session</button>
+                } else { // 'view-attendance' is the default
+                    content = `
+                       <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+                           <div class="flex items-center gap-4">
+                               <button id="back-to-classrooms" class="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700"><i data-lucide="arrow-left"></i></button>
+                               <div>
+                                   <h1 class="text-3xl font-bold">${classroom.name}</h1>
+                                   <p class="text-slate-500 dark:text-slate-400">${classroom.subject} - Section ${classroom.section || 'N/A'}</p>
+                               </div>
+                           </div>
+                           <div class="flex items-center gap-2">
+                               <button id="manage-students-link-btn" class="py-2 px-4 text-sm font-semibold rounded-lg bg-indigo-100 text-indigo-700 hover:bg-indigo-200">Manage Students</button>
+                               <button id="start-new-session-btn" class="flex items-center gap-2 py-2 px-4 text-sm font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700"><i data-lucide="play-circle"></i> Start New Session</button>
+                           </div>
+                       </div>
+                       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <div class="lg:col-span-1 p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md">
+                                <h3 class="font-semibold mb-4">Overall Class Attendance</h3>
+                                <div class="chart-container" style="height: 250px;">
+                                    <canvas id="class-overview-chart"></canvas>
+                                </div>
+                                <div id="class-overview-stats" class="text-center mt-4"></div>
                             </div>
-                            <div id="sessions-overview-container" class="space-y-4"></div>
+                            <div class="lg:col-span-2 p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md">
+                                <h3 class="font-semibold mb-4">All Sessions</h3>
+                                <div id="all-sessions-container" class="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                                </div>
+                            </div>
                        </div>
                     `;
                     detailView.innerHTML = content;
-                    setupAttendanceOverview();
+                    document.getElementById('back-to-classrooms').addEventListener('click', setupClassroomsView);
+                    document.getElementById('manage-students-link-btn').addEventListener('click', () => showClassroomDetailView('manage-students'));
+                    document.getElementById('start-new-session-btn').onclick = async () => {
+                        const sessionsRef = collection(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId, 'sessions');
+                        const newSessionRef = await addDoc(sessionsRef, {
+                            startTime: serverTimestamp(),
+                            endTime: null,
+                            status: 'active',
+                            date: new Date().toISOString().split('T')[0]
+                        });
+                        showClassroomSessionView(newSessionRef.id);
+                    };
+                    renderOverallAttendanceGraph(currentClassId);
+                    listenToAllSessions(currentClassId);
                 }
                 
                 lucide.createIcons();
-                document.getElementById('back-to-classrooms').addEventListener('click', setupClassroomsView);
-                document.getElementById('show-add-student-modal')?.addEventListener('click', () => {
+                 document.getElementById('show-add-student-modal')?.addEventListener('click', () => {
                     document.getElementById('add-student-error').classList.add('hidden');
                     addStudentForm.reset();
                     document.getElementById('add-student-modal').classList.remove('hidden');
                 });
+            }
+
+            async function renderOverallAttendanceGraph(classId) {
+                if (charts.classOverview) charts.classOverview.destroy();
+                const statsContainer = document.getElementById('class-overview-stats');
+                statsContainer.innerHTML = '<p class="text-sm text-slate-500">Calculating...</p>';
+
+                const studentsRef = collection(db, 'artifacts', appId, 'users', userId, 'classes', classId, 'students');
+                const qStudents = query(studentsRef, where("deleted", "!=", true));
+                
+                const sessionsRef = collection(db, 'artifacts', appId, 'users', userId, 'classes', classId, 'sessions');
+                
+                const attendanceRef = collection(db, 'artifacts', appId, 'users', userId, 'classes', classId, 'attendance');
+
+                const [studentsSnap, sessionsSnap, attendanceSnap] = await Promise.all([
+                    getDocs(qStudents),
+                    getDocs(sessionsRef),
+                    getDocs(attendanceRef)
+                ]);
+
+                const studentCount = studentsSnap.size;
+                const sessionCount = sessionsSnap.size;
+                const totalPresent = attendanceSnap.size;
+
+                const ctx = document.getElementById('class-overview-chart')?.getContext('2d');
+                if (!ctx) return;
+
+                if (sessionCount === 0 || studentCount === 0) {
+                    statsContainer.innerHTML = '<p class="text-sm text-slate-500">Not enough data to show a graph.</p>';
+                    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                    return;
+                }
+
+                const totalPossible = studentCount * sessionCount;
+                const totalAbsent = totalPossible - totalPresent;
+                const ratio = totalPossible > 0 ? (totalPresent / totalPossible * 100).toFixed(1) : 0;
+                
+                statsContainer.innerHTML = `
+                    <p class="text-4xl font-bold text-blue-500">${ratio}%</p>
+                    <p class="text-sm text-slate-500">${totalPresent} Presences out of ${totalPossible} Possible</p>
+                `;
+                
+                charts.classOverview = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Present Instances', 'Absent Instances'],
+                        datasets: [{ 
+                            data: [totalPresent, totalAbsent > 0 ? totalAbsent : 0], 
+                            backgroundColor: ['#3b82f6', '#ef4444'], 
+                            borderColor: [document.documentElement.classList.contains('dark') ? '#1e293b' : '#ffffff'], 
+                            hoverOffset: 4 
+                        }]
+                    },
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false, 
+                        plugins: { 
+                            legend: { 
+                                position: 'bottom', 
+                                labels: { color: htmlEl.classList.contains('dark') ? '#e2e8f0' : '#475569' } 
+                            } 
+                        } 
+                    }
+                });
+            }
+
+            function listenToAllSessions(classId) {
+                const sessionsRef = collection(db, 'artifacts', appId, 'users', userId, 'classes', classId, 'sessions');
+                const qSessions = query(sessionsRef, orderBy('startTime', 'desc'));
+
+                const unsub = onSnapshot(qSessions, async (sessionsSnap) => {
+                    const sessions = sessionsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    const container = document.getElementById('all-sessions-container');
+                    if (!container) return; 
+
+                    if (sessions.length === 0) {
+                        container.innerHTML = '<p class="text-slate-500 dark:text-slate-400 text-center py-4">No sessions started for this class yet.</p>';
+                        return;
+                    }
+                    
+                    const attendanceRef = collection(db, 'artifacts', appId, 'users', userId, 'classes', classId, 'attendance');
+                    const attendanceSnap = await getDocs(attendanceRef);
+                    const allAttendance = attendanceSnap.docs.map(d => d.data());
+
+                    container.innerHTML = sessions.map(session => {
+                        const sessionAttendanceCount = allAttendance.filter(a => a.sessionId === session.id).length;
+                        const startTime = session.startTime?.toDate().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) || 'Starting...';
+                        const statusClass = session.status === 'active' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400';
+                        const statusText = session.status.charAt(0).toUpperCase() + session.status.slice(1);
+
+                        return `
+                        <div class="p-3 border rounded-lg dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <p class="font-semibold text-sm">${startTime}</p>
+                                    <p class="text-xs text-slate-500"><strong>${sessionAttendanceCount}</strong> students present.</p>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                     <span class="px-2 py-1 text-xs font-medium rounded-full ${statusClass}">${statusText}</span>
+                                     <button data-session-id="${session.id}" class="manage-session-btn text-sm text-blue-600 font-semibold hover:underline">Manage</button>
+                                </div>
+                            </div>
+                        </div>
+                        `;
+                    }).join('');
+
+                    container.querySelectorAll('.manage-session-btn').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            showClassroomSessionView(btn.dataset.sessionId);
+                        });
+                    });
+
+                });
+                unsubscribeListeners.push(unsub);
             }
 
             const addStudentForm = document.getElementById('add-student-form');
@@ -2393,6 +2533,7 @@
                 const q = query(studentsRef, where("deleted", "!=", true));
                 const unsub = onSnapshot(q, (snap) => {
                     const list = document.getElementById('class-students-list');
+                    if(!list) return;
                     if (snap.empty) {
                         list.innerHTML = `<tr><td colspan="4" class="text-center p-4">No students added yet.</td></tr>`;
                         return;
@@ -2440,67 +2581,6 @@
             });
 
              // --- SESSION-BASED ATTENDANCE REFACTORED ---
-
-            function setupAttendanceOverview() {
-                document.getElementById('start-new-session-btn').onclick = async () => {
-                    const sessionsRef = collection(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId, 'sessions');
-                    const newSessionRef = await addDoc(sessionsRef, {
-                        startTime: serverTimestamp(),
-                        endTime: null,
-                        status: 'active',
-                        date: new Date().toISOString().split('T')[0]
-                    });
-                    showClassroomSessionView(newSessionRef.id);
-                };
-                listenToTodaysSessions();
-            }
-
-            function listenToTodaysSessions() {
-                const sessionsRef = collection(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId, 'sessions');
-                const today = new Date().toISOString().split('T')[0];
-                const qSessions = query(sessionsRef, where("date", "==", today), orderBy('startTime', 'desc'));
-
-                const unsub = onSnapshot(qSessions, async (sessionsSnap) => {
-                    const sessions = sessionsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-                    const container = document.getElementById('sessions-overview-container');
-
-                    if (sessions.length === 0) {
-                        container.innerHTML = '<p class="text-slate-500 dark:text-slate-400 text-center py-4">No sessions started for today.</p>';
-                        return;
-                    }
-                    
-                    const attendanceRef = collection(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId, 'attendance');
-                    const qAttendance = query(attendanceRef, where("date", "==", today));
-                    const attendanceSnap = await getDocs(qAttendance);
-                    const allAttendance = attendanceSnap.docs.map(d => d.data());
-
-                    container.innerHTML = sessions.map(session => {
-                        const sessionAttendance = allAttendance.filter(a => a.sessionId === session.id);
-                        const startTime = session.startTime?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) || 'Starting...';
-                        const endTime = session.endTime ? session.endTime.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Active';
-                        
-                        return `
-                        <div class="p-4 border rounded-lg dark:border-slate-700">
-                            <div class="flex justify-between items-center">
-                                <h5 class="font-semibold">Session: ${startTime} - ${endTime}</h5>
-                                <span class="px-2 py-1 text-xs font-medium rounded-full ${session.status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}">${session.status}</span>
-                            </div>
-                             <p class="text-sm mt-2 text-slate-500"><strong>${sessionAttendance.length}</strong> students present.</p>
-                             ${session.status === 'active' ? `<button data-session-id="${session.id}" class="manage-session-btn mt-2 text-sm text-blue-600 font-semibold">Manage Active Session</button>`:''}
-                        </div>
-                    `;
-                    }).join('');
-                });
-                unsubscribeListeners.push(unsub);
-
-                 document.getElementById('sessions-overview-container').addEventListener('click', (e) => {
-                    const manageBtn = e.target.closest('.manage-session-btn');
-                    if (manageBtn) {
-                        showClassroomSessionView(manageBtn.dataset.sessionId);
-                    }
-                });
-            }
-
             async function showClassroomSessionView(sessionId) {
                 // Switch views
                 document.getElementById('classroom-detail-view').classList.add('hidden');
@@ -2550,7 +2630,6 @@
                 };
                 
                 listenToSessionStudents(sessionId);
-                listenToAttendanceRequests(sessionId);
             }
 
             async function generateSessionQR(sessionId) {
@@ -2640,39 +2719,6 @@
                     }
                 });
             }
-
-            function listenToAttendanceRequests(sessionId) {
-                const requestsRef = collection(db, 'artifacts', appId, 'public', 'data', 'attendanceRequests');
-                const qRequests = query(requestsRef, where("teacherId", "==", userId), where("classId", "==", currentClassId), where("sessionId", "==", sessionId));
-
-                const unsubRequests = onSnapshot(qRequests, async (snapshot) => {
-                    for (const reqDoc of snapshot.docs) {
-                        const request = reqDoc.data();
-                        
-                        const studentsRef = collection(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId, 'students');
-                        const qStudent = query(studentsRef, where("email", "==", request.studentEmail), where("deleted", "!=", true));
-                        const studentSnap = await getDocs(qStudent);
-
-                        if (!studentSnap.empty) {
-                            const studentDoc = studentSnap.docs[0];
-                            const studentId = studentDoc.id;
-                            
-                            const attendanceRef = collection(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId, 'attendance');
-                            const qAttendance = query(attendanceRef, where("sessionId", "==", sessionId), where("studentId", "==", studentId));
-                            const attendanceSnap = await getDocs(qAttendance);
-
-                            if (attendanceSnap.empty) {
-                                await addDoc(attendanceRef, { date: new Date().toISOString().split('T')[0], sessionId, studentId, studentName: studentDoc.data().name, status: 'Present', timestamp: serverTimestamp() });
-                            }
-                        } else {
-                            console.warn(`Attendance req from ${request.studentEmail} but not in class ${currentClassId}.`);
-                        }
-                        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'attendanceRequests', reqDoc.id));
-                    }
-                });
-                unsubscribeListeners.push(unsubRequests);
-            }
-
             
             // --- Student Dashboard View (for Teacher) ---
             async function showStudentDashboard(studentId, studentName) {
@@ -3480,4 +3526,3 @@
     </script>
 </body>
 </html>
-
