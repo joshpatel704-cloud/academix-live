@@ -1113,6 +1113,21 @@
         </div>
     </div>
 
+    <!-- NEW: Delete Classroom Confirmation Modal -->
+    <div id="delete-classroom-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-backdrop">
+        <div class="w-full max-w-md p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-lg modal-content">
+            <h2 class="text-xl font-bold mb-4">Confirm Classroom Deletion</h2>
+            <p class="text-slate-600 dark:text-slate-400">Are you sure you want to delete this classroom? All public student enrollments will be removed. Associated private data like sessions will remain but will be inaccessible. This action cannot be undone.</p>
+            <div class="mt-6 flex justify-end gap-3">
+                <button type="button" class="modal-close-btn px-4 py-2 text-sm font-medium rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600">Cancel</button>
+                <button id="confirm-delete-classroom-btn" type="button" class="px-4 py-2 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 flex items-center justify-center">
+                    <span class="loader-small hidden"></span>
+                    <span>Delete Classroom</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Exit Class Confirmation Modal -->
     <div id="exit-class-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-backdrop">
         <div class="w-full max-w-md p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-lg modal-content">
@@ -1516,6 +1531,7 @@
             setupModal('exit-class-modal', null);
             setupModal('create-institute-modal', 'create-institute-btn');
             setupModal('delete-session-modal', null);
+            setupModal('delete-classroom-modal', null); // <-- NEW
 
             document.getElementById('confirm-delete-session-btn').addEventListener('click', async (e) => {
                 const btn = e.currentTarget;
@@ -1561,6 +1577,55 @@
                     btn.disabled = false;
                     loader.classList.add('hidden');
                     btnText.textContent = 'Delete Session';
+                }
+            });
+
+            // --- NEW: Classroom Deletion Logic ---
+            document.getElementById('confirm-delete-classroom-btn').addEventListener('click', async (e) => {
+                const btn = e.currentTarget;
+                const classId = btn.dataset.classId;
+                if (!classId || !userId) {
+                    console.error("Missing context for classroom deletion.");
+                    return;
+                }
+
+                const loader = btn.querySelector('.loader-small');
+                const btnText = btn.querySelector('span:not(.loader-small)');
+                btn.disabled = true;
+                loader.classList.remove('hidden');
+                btnText.textContent = 'Deleting...';
+
+                try {
+                    const batch = writeBatch(db);
+
+                    // 1. Delete the classroom document itself from the teacher's private collection.
+                    const classRef = doc(db, 'artifacts', appId, 'users', userId, 'classes', classId);
+                    batch.delete(classRef);
+
+                    // 2. Find and delete all public enrollment records for this class.
+                    const enrollmentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'studentEnrollments');
+                    const q = query(enrollmentsRef, where("classId", "==", classId), where("teacherId", "==", userId));
+                    const enrollmentsSnap = await getDocs(q);
+                    enrollmentsSnap.forEach(doc => {
+                        batch.delete(doc.ref);
+                    });
+
+                    // NOTE: This does not delete subcollections like students, sessions, or attendance.
+                    // A full recursive delete is complex and best handled by a Firebase Cloud Function
+                    // to avoid leaving orphaned data. This implementation removes the class from view.
+
+                    await batch.commit();
+                    document.getElementById('delete-classroom-modal').classList.add('hidden');
+                    // The onSnapshot listener for classrooms will automatically update the UI.
+
+                } catch (error) {
+                    console.error("Error deleting classroom:", error);
+                    // Optionally, show an error message to the user.
+                } finally {
+                    // Reset button state
+                    btn.disabled = false;
+                    loader.classList.add('hidden');
+                    btnText.textContent = 'Delete Classroom';
                 }
             });
 
@@ -2279,25 +2344,39 @@
                     container.innerHTML = snap.docs.map(doc => {
                         const classroom = doc.data();
                         return `
-                            <div data-id="${doc.id}" class="classroom-card cursor-pointer p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md flex flex-col justify-between">
-                                <div>
+                            <div class="classroom-card p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md flex flex-col justify-between relative">
+                                <div data-id="${doc.id}" class="classroom-card-content cursor-pointer">
                                     <h3 class="text-lg font-bold">${classroom.name}</h3>
                                     <p class="text-sm text-slate-500 dark:text-slate-400">${classroom.subject} - Section ${classroom.section || 'N/A'}</p>
+                                    <div class="mt-4 text-right">
+                                         <span class="text-sm font-semibold text-blue-600 dark:text-blue-400">View Attendance & Sessions &rarr;</span>
+                                    </div>
                                 </div>
-                                <div class="mt-4 text-right">
-                                     <span class="text-sm font-semibold text-blue-600 dark:text-blue-400">View Attendance & Sessions &rarr;</span>
-                                </div>
+                                <button data-id="${doc.id}" title="Delete Classroom" class="delete-classroom-btn absolute top-3 right-3 p-2 text-slate-400 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full transition-colors">
+                                    <i data-lucide="trash-2" class="h-4 w-4"></i>
+                                </button>
                             </div>
                         `;
                     }).join('');
+                    lucide.createIcons();
                 });
                 unsubscribeListeners.push(unsub);
             }
             
             document.getElementById('view-classrooms').addEventListener('click', (e) => {
-                const classCard = e.target.closest('.classroom-card');
-                if (classCard) {
-                    currentClassId = classCard.dataset.id;
+                const classCardContent = e.target.closest('.classroom-card-content');
+                const deleteBtn = e.target.closest('.delete-classroom-btn');
+
+                if (deleteBtn) {
+                    e.stopPropagation();
+                    const classId = deleteBtn.dataset.id;
+                    const modal = document.getElementById('delete-classroom-modal');
+                    const confirmBtn = document.getElementById('confirm-delete-classroom-btn');
+                    confirmBtn.dataset.classId = classId;
+                    modal.classList.remove('hidden');
+
+                } else if (classCardContent) {
+                    currentClassId = classCardContent.dataset.id;
                     showClassroomDetailView('view-attendance');
                 }
             });
@@ -3635,4 +3714,3 @@
     </script>
 </body>
 </html>
-
