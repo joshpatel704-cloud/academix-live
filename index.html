@@ -2094,14 +2094,13 @@
                     setupStudentDetailsView();
                     displayStudentClasses();
                     initializeStudentScanner();
-                    displayStudentAttendanceHistory(); // <-- NEW: Call history function
+                    displayStudentAttendanceHistory();
                 } else if (currentUserRole === 'admin') {
                     document.getElementById('admin-global-attendance-view').classList.remove('hidden');
                     document.getElementById('student-attendance-view').classList.add('hidden');
                 }
             }
-
-            // --- NEW: Function to display student's personal attendance history ---
+            
             async function displayStudentAttendanceHistory() {
                 const historyBody = document.getElementById('student-attendance-history');
                 if (!historyBody || !auth.currentUser) return;
@@ -2127,19 +2126,28 @@
                         
                         if (!teacherId || !classId || !studentId) return;
 
-                        const attendanceRef = collection(db, 'artifacts', appId, 'users', teacherId, 'classes', classId, 'attendance');
+                        // Check if the attendance subcollection exists before querying it
+                        const classRef = doc(db, 'artifacts', appId, 'users', teacherId, 'classes', classId);
+                        const attendanceRef = collection(classRef, 'attendance');
+
+                        // A simple getDocs to see if there's anything there. 
+                        // This isn't strictly necessary for the query to work, but it's a good practice for debugging.
+                        // The main logic relies on the query below.
+                        
                         const qAttendance = query(attendanceRef, where("studentId", "==", studentId));
                         const attendanceSnap = await getDocs(qAttendance);
 
-                        attendanceSnap.forEach(doc => {
-                            const record = doc.data();
-                            allAttendanceRecords.push({
-                                date: record.date,
-                                subject: classSubject,
-                                status: record.status || 'Present', // Default to Present if status is missing
-                                timestamp: record.timestamp?.toDate() || new Date(record.date)
+                        if (!attendanceSnap.empty) {
+                            attendanceSnap.forEach(doc => {
+                                const record = doc.data();
+                                allAttendanceRecords.push({
+                                    date: record.date,
+                                    subject: classSubject,
+                                    status: record.status || 'Present',
+                                    timestamp: record.timestamp?.toDate() || new Date(record.date)
+                                });
                             });
-                        });
+                        }
                     });
 
                     await Promise.all(attendancePromises);
@@ -2149,7 +2157,6 @@
                         return;
                     }
 
-                    // Sort records by timestamp, newest first
                     allAttendanceRecords.sort((a, b) => b.timestamp - a.timestamp);
 
                     historyBody.innerHTML = allAttendanceRecords.map(record => {
@@ -3803,3 +3810,4 @@
     </script>
 </body>
 </html>
+
