@@ -2106,61 +2106,19 @@
                 if (!historyBody || !auth.currentUser) return;
 
                 historyBody.innerHTML = `<tr><td colspan="3" class="text-center p-4 text-slate-500">Loading your history...</td></tr>`;
+                
+                const historyRef = collection(db, 'artifacts', appId, 'users', userId, 'attendanceHistory');
+                const q = query(historyRef, orderBy('timestamp', 'desc'));
 
-                try {
-                    const studentEmail = auth.currentUser.email;
-                    const enrollmentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'studentEnrollments');
-                    const qEnrollments = query(enrollmentsRef, where("studentEmail", "==", studentEmail));
-                    const enrollmentsSnap = await getDocs(qEnrollments);
-
-                    if (enrollmentsSnap.empty) {
-                        historyBody.innerHTML = `<tr><td colspan="3" class="text-center p-4 text-slate-500">You are not enrolled in any classes to have an attendance history.</td></tr>`;
-                        return;
-                    }
-
-                    let allAttendanceRecords = [];
-
-                    const attendancePromises = enrollmentsSnap.docs.map(async (enrollDoc) => {
-                        const enrollment = enrollDoc.data();
-                        const { teacherId, classId, studentId, classSubject } = enrollment;
-                        
-                        if (!teacherId || !classId || !studentId) return;
-
-                        // Check if the attendance subcollection exists before querying it
-                        const classRef = doc(db, 'artifacts', appId, 'users', teacherId, 'classes', classId);
-                        const attendanceRef = collection(classRef, 'attendance');
-
-                        // A simple getDocs to see if there's anything there. 
-                        // This isn't strictly necessary for the query to work, but it's a good practice for debugging.
-                        // The main logic relies on the query below.
-                        
-                        const qAttendance = query(attendanceRef, where("studentId", "==", studentId));
-                        const attendanceSnap = await getDocs(qAttendance);
-
-                        if (!attendanceSnap.empty) {
-                            attendanceSnap.forEach(doc => {
-                                const record = doc.data();
-                                allAttendanceRecords.push({
-                                    date: record.date,
-                                    subject: classSubject,
-                                    status: record.status || 'Present',
-                                    timestamp: record.timestamp?.toDate() || new Date(record.date)
-                                });
-                            });
-                        }
-                    });
-
-                    await Promise.all(attendancePromises);
-
-                    if (allAttendanceRecords.length === 0) {
+                const unsub = onSnapshot(q, (snap) => {
+                    if (snap.empty) {
                         historyBody.innerHTML = `<tr><td colspan="3" class="text-center p-4 text-slate-500">No attendance records found.</td></tr>`;
                         return;
                     }
 
-                    allAttendanceRecords.sort((a, b) => b.timestamp - a.timestamp);
-
-                    historyBody.innerHTML = allAttendanceRecords.map(record => {
-                        const date = new Date(record.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+                    historyBody.innerHTML = snap.docs.map(doc => {
+                        const record = doc.data();
+                        const date = record.timestamp?.toDate().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) || record.date;
                         return `
                             <tr class="border-b dark:border-slate-700">
                                 <td class="px-6 py-4">${date}</td>
@@ -2173,11 +2131,12 @@
                             </tr>
                         `;
                     }).join('');
-
-                } catch (error) {
+                }, (error) => {
                     console.error("Error fetching student attendance history:", error);
                     historyBody.innerHTML = `<tr><td colspan="3" class="text-center p-4 text-red-500">Could not load attendance history.</td></tr>`;
-                }
+                });
+
+                unsubscribeListeners.push(unsub);
             }
 
 
@@ -3398,13 +3357,14 @@
                                     scanResultEl.className = 'mt-4 text-center font-medium text-red-500';
                                     return; 
                                 }
-
-                                const studentId = enrollmentSnap.docs[0].data().studentId;
+                                
+                                const enrollmentData = enrollmentSnap.docs[0].data();
+                                const studentId = enrollmentData.studentId;
+                                const classSubject = enrollmentData.classSubject;
 
                                 try {
                                     const attendanceRef = collection(db, 'artifacts', appId, 'users', data.teacherId, 'classes', data.classId, 'attendance');
                                     
-                                    // Check if already marked present for this session
                                     const qCheck = query(attendanceRef, where("sessionId", "==", data.sessionId), where("studentId", "==", studentId));
                                     const checkSnap = await getDocs(qCheck);
 
@@ -3413,9 +3373,12 @@
                                         scanResultEl.className = 'mt-4 text-center font-medium text-blue-500';
                                         return;
                                     }
+                                    
+                                    const batch = writeBatch(db);
 
-                                    // Save the attendance record
-                                    await addDoc(attendanceRef, {
+                                    // 1. Write to teacher's private subcollection
+                                    const teacherAttendanceDocRef = doc(collection(db, 'artifacts', appId, 'users', data.teacherId, 'classes', data.classId, 'attendance'));
+                                    batch.set(teacherAttendanceDocRef, {
                                         date: new Date().toISOString().split('T')[0],
                                         sessionId: data.sessionId,
                                         studentId: studentId,
@@ -3423,6 +3386,17 @@
                                         status: 'Present',
                                         timestamp: serverTimestamp()
                                     });
+
+                                    // 2. Write to student's private history subcollection
+                                    const studentHistoryDocRef = doc(collection(db, 'artifacts', appId, 'users', userId, 'attendanceHistory'));
+                                    batch.set(studentHistoryDocRef, {
+                                        date: new Date().toISOString().split('T')[0],
+                                        subject: classSubject,
+                                        status: 'Present',
+                                        timestamp: serverTimestamp()
+                                    });
+
+                                    await batch.commit();
 
                                     scanResultEl.textContent = `Success! You have been marked present.`;
                                     scanResultEl.className = 'mt-4 text-center font-medium text-emerald-500';
