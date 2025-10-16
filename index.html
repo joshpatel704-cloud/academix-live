@@ -2093,12 +2093,86 @@
                     generateStudentIdQRCode();
                     setupStudentDetailsView();
                     displayStudentClasses();
-                    initializeStudentScanner(); 
+                    initializeStudentScanner();
+                    displayStudentAttendanceHistory(); // <-- NEW: Call history function
                 } else if (currentUserRole === 'admin') {
                     document.getElementById('admin-global-attendance-view').classList.remove('hidden');
                     document.getElementById('student-attendance-view').classList.add('hidden');
                 }
             }
+
+            // --- NEW: Function to display student's personal attendance history ---
+            async function displayStudentAttendanceHistory() {
+                const historyBody = document.getElementById('student-attendance-history');
+                if (!historyBody || !auth.currentUser) return;
+
+                historyBody.innerHTML = `<tr><td colspan="3" class="text-center p-4 text-slate-500">Loading your history...</td></tr>`;
+
+                try {
+                    const studentEmail = auth.currentUser.email;
+                    const enrollmentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'studentEnrollments');
+                    const qEnrollments = query(enrollmentsRef, where("studentEmail", "==", studentEmail));
+                    const enrollmentsSnap = await getDocs(qEnrollments);
+
+                    if (enrollmentsSnap.empty) {
+                        historyBody.innerHTML = `<tr><td colspan="3" class="text-center p-4 text-slate-500">You are not enrolled in any classes to have an attendance history.</td></tr>`;
+                        return;
+                    }
+
+                    let allAttendanceRecords = [];
+
+                    const attendancePromises = enrollmentsSnap.docs.map(async (enrollDoc) => {
+                        const enrollment = enrollDoc.data();
+                        const { teacherId, classId, studentId, classSubject } = enrollment;
+                        
+                        if (!teacherId || !classId || !studentId) return;
+
+                        const attendanceRef = collection(db, 'artifacts', appId, 'users', teacherId, 'classes', classId, 'attendance');
+                        const qAttendance = query(attendanceRef, where("studentId", "==", studentId));
+                        const attendanceSnap = await getDocs(qAttendance);
+
+                        attendanceSnap.forEach(doc => {
+                            const record = doc.data();
+                            allAttendanceRecords.push({
+                                date: record.date,
+                                subject: classSubject,
+                                status: record.status || 'Present', // Default to Present if status is missing
+                                timestamp: record.timestamp?.toDate() || new Date(record.date)
+                            });
+                        });
+                    });
+
+                    await Promise.all(attendancePromises);
+
+                    if (allAttendanceRecords.length === 0) {
+                        historyBody.innerHTML = `<tr><td colspan="3" class="text-center p-4 text-slate-500">No attendance records found.</td></tr>`;
+                        return;
+                    }
+
+                    // Sort records by timestamp, newest first
+                    allAttendanceRecords.sort((a, b) => b.timestamp - a.timestamp);
+
+                    historyBody.innerHTML = allAttendanceRecords.map(record => {
+                        const date = new Date(record.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+                        return `
+                            <tr class="border-b dark:border-slate-700">
+                                <td class="px-6 py-4">${date}</td>
+                                <td class="px-6 py-4 font-medium">${record.subject}</td>
+                                <td class="px-6 py-4">
+                                    <span class="px-2 py-1 text-xs font-medium rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300">
+                                        ${record.status}
+                                    </span>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+
+                } catch (error) {
+                    console.error("Error fetching student attendance history:", error);
+                    historyBody.innerHTML = `<tr><td colspan="3" class="text-center p-4 text-red-500">Could not load attendance history.</td></tr>`;
+                }
+            }
+
 
             async function displayStudentClasses() {
                 const container = document.getElementById('student-classes-container');
@@ -3307,7 +3381,6 @@
                                 scanResultEl.textContent = 'Expired QR Code. Please ask for a new one.';
                                 scanResultEl.className = 'mt-4 text-center font-medium text-orange-500';
                             } else {
-                                 // --- ENROLLMENT CHECK ---
                                 scanResultEl.textContent = 'Verifying enrollment...';
                                 const enrollmentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'studentEnrollments');
                                 const q = query(enrollmentsRef, where("studentEmail", "==", auth.currentUser.email), where("classId", "==", data.classId));
@@ -3318,22 +3391,38 @@
                                     scanResultEl.className = 'mt-4 text-center font-medium text-red-500';
                                     return; 
                                 }
-                                // --- END ENROLLMENT CHECK ---
+
+                                const studentId = enrollmentSnap.docs[0].data().studentId;
+
                                 try {
-                                    const requestsRef = collection(db, 'artifacts', appId, 'public', 'data', 'attendanceRequests');
-                                    await addDoc(requestsRef, {
-                                        teacherId: data.teacherId,
-                                        classId: data.classId,
+                                    const attendanceRef = collection(db, 'artifacts', appId, 'users', data.teacherId, 'classes', data.classId, 'attendance');
+                                    
+                                    // Check if already marked present for this session
+                                    const qCheck = query(attendanceRef, where("sessionId", "==", data.sessionId), where("studentId", "==", studentId));
+                                    const checkSnap = await getDocs(qCheck);
+
+                                    if (!checkSnap.empty) {
+                                        scanResultEl.textContent = 'You are already marked present for this session.';
+                                        scanResultEl.className = 'mt-4 text-center font-medium text-blue-500';
+                                        return;
+                                    }
+
+                                    // Save the attendance record
+                                    await addDoc(attendanceRef, {
+                                        date: new Date().toISOString().split('T')[0],
                                         sessionId: data.sessionId,
-                                        studentEmail: auth.currentUser.email,
+                                        studentId: studentId,
                                         studentName: auth.currentUser.displayName,
-                                        timestamp: serverTimestamp(),
+                                        status: 'Present',
+                                        timestamp: serverTimestamp()
                                     });
-                                    scanResultEl.textContent = `Success! Attendance request sent.`;
+
+                                    scanResultEl.textContent = `Success! You have been marked present.`;
                                     scanResultEl.className = 'mt-4 text-center font-medium text-emerald-500';
+
                                 } catch (dbError) {
-                                    console.error("Firestore Error on attendance request:", dbError);
-                                    scanResultEl.textContent = 'Error sending request. Check connection and try again.';
+                                    console.error("Firestore Error on saving attendance:", dbError);
+                                    scanResultEl.textContent = 'Error saving attendance. Check connection and try again.';
                                     scanResultEl.className = 'mt-4 text-center font-medium text-red-500';
                                 }
                             }
