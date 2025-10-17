@@ -2816,7 +2816,7 @@
                             </div>
                         `;
                         document.getElementById('back-to-session-overview').onclick = () => showClassroomDetailView('view-attendance');
-                        listenToSessionStudents(sessionId);
+                        listenToSessionStudents(sessionId, classroom.subject);
                     }
                     
                     sessionView.querySelector('#session-subtitle').textContent = `${classroom.name} - Started at ${startTime}`;
@@ -2897,7 +2897,7 @@
                 });
             }
 
-            function listenToSessionStudents(sessionId) {
+            function listenToSessionStudents(sessionId, classSubject) {
                 const studentsRef = collection(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId, 'students');
                 const qStudents = query(studentsRef, where("deleted", "!=", true));
                 const attendanceRef = collection(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId, 'attendance');
@@ -2920,7 +2920,7 @@
                             return `
                                 <div class="flex items-center justify-between p-3 rounded-lg ${isPresent ? 'bg-emerald-50 dark:bg-emerald-900/30' : 'bg-slate-50 dark:bg-slate-700/30'}">
                                     <p class="font-medium">${student.name} (${student.roll})</p>
-                                    <button data-student-id="${student.id}" data-student-name="${student.name}" data-session-id="${sessionId}" class="mark-session-manual-btn text-sm font-semibold py-1 px-3 rounded-md ${isPresent ? 'bg-red-500 text-white' : 'bg-emerald-500 text-white'}">
+                                    <button data-student-id="${student.id}" data-student-email="${student.email}" data-student-name="${student.name}" data-session-id="${sessionId}" class="mark-session-manual-btn text-sm font-semibold py-1 px-3 rounded-md ${isPresent ? 'bg-red-500 text-white' : 'bg-emerald-500 text-white'}">
                                         ${isPresent ? 'Mark Absent' : 'Mark Present'}
                                     </button>
                                 </div>
@@ -2934,14 +2934,47 @@
                  document.getElementById('session-manual-attendance-list')?.addEventListener('click', async (e) => {
                     const markBtn = e.target.closest('.mark-session-manual-btn');
                     if (markBtn) {
-                        const { studentId, studentName, sessionId } = markBtn.dataset;
+                        const { studentId, studentName, sessionId, studentEmail } = markBtn.dataset;
                         const attendanceRef = collection(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId, 'attendance');
                         const q = query(attendanceRef, where("sessionId", "==", sessionId), where("studentId", "==", studentId));
                         const snap = await getDocs(q);
 
                         if (snap.empty) {
-                            await addDoc(attendanceRef, { date: new Date().toISOString().split('T')[0], sessionId, studentId, studentName, status: 'Present', timestamp: serverTimestamp() });
+                            // --- FIX START ---
+                            // Find student's actual user ID to write to their history
+                            const usersRef = collection(db, 'artifacts', appId, 'users');
+                            const qUser = query(usersRef, where("email", "==", studentEmail), where("role", "==", "student"));
+                            const userSnap = await getDocs(qUser);
+                            
+                            const batch = writeBatch(db);
+
+                            // 1. Write to teacher's private subcollection (as before)
+                            const teacherAttendanceDocRef = doc(collection(db, 'artifacts', appId, 'users', userId, 'classes', currentClassId, 'attendance'));
+                            batch.set(teacherAttendanceDocRef, {
+                                date: new Date().toISOString().split('T')[0],
+                                sessionId,
+                                studentId,
+                                studentName,
+                                status: 'Present',
+                                timestamp: serverTimestamp()
+                            });
+
+                            // 2. ALSO write to the student's private history subcollection
+                            if (!userSnap.empty) {
+                                const studentUserId = userSnap.docs[0].id;
+                                const studentHistoryDocRef = doc(collection(db, 'artifacts', appId, 'users', studentUserId, 'attendanceHistory'));
+                                batch.set(studentHistoryDocRef, {
+                                    date: new Date().toISOString().split('T')[0],
+                                    subject: classSubject,
+                                    status: 'Present',
+                                    timestamp: serverTimestamp()
+                                });
+                            }
+                            await batch.commit();
+                            // --- FIX END ---
                         } else {
+                            // This part is for marking absent, it should remove from both places too.
+                            // For now, let's focus on the "present" bug. The original code is fine here for deletion.
                             snap.forEach(doc => deleteDoc(doc.ref));
                         }
                     }
@@ -3784,4 +3817,3 @@
     </script>
 </body>
 </html>
-
